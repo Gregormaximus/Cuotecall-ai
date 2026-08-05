@@ -1,0 +1,6 @@
+{
+  "name": "QuoteCall AI",
+  "description": "AI-powered missed call responder, multimodal instant estimates, and Stripe deposit engine for field services. Turn Missed Calls Into Instant Paid Deposits.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
