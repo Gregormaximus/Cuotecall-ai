@@ -1,23 +1,10 @@
 {
   "hosting": {
-    "public": "public",
+    "public": "app/src/main/assets/microsite",
     "ignore": [
       "firebase.json",
       "**/.*",
       "**/node_modules/**"
-    ],
-    "rewrites": [
-      {
-        "source": "/site/**",
-        "destination": "/index.html"
-      },
-      {
-        "source": "**",
-        "destination": "/index.html"
-      }
     ]
-  },
-  "functions": {
-    "source": "functions"
   }
 }
