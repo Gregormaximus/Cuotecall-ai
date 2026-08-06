@@ -45,6 +45,8 @@ data class MainUiState(
     val isPaywallOpen: Boolean = false,
     val isWebRtcSimOpen: Boolean = false,
     val isAddServiceDialogOpen: Boolean = false,
+    val isDynamicPricingEnabled: Boolean = false,
+    val aiSuggestions: List<String> = listOf("Add 'Emergency Lockout' keyword to Locksmith", "Add Fuel Delivery service ($60)"),
     val searchQuery: String = "",
     val sitePromptText: String = "Create a sleek dark cyan landing page for my Towing business with a big WebRTC Voice Call button.",
     val isVoiceRecording: Boolean = false,
@@ -204,6 +206,86 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             repository.deleteService(service)
             _uiState.update { it.copy(toastMessage = "Service removed") }
+        }
+    }
+
+    fun updateService(service: FieldService) {
+        viewModelScope.launch {
+            repository.saveService(service)
+            _uiState.update { it.copy(toastMessage = "Updated ${service.name}") }
+        }
+    }
+
+    fun toggleDynamicPricing(enabled: Boolean) {
+        _uiState.update { 
+            it.copy(
+                isDynamicPricingEnabled = enabled,
+                toastMessage = if (enabled) "Smart Pricing activated! Prices auto-adjust for demand." else "Smart Pricing disabled."
+            ) 
+        }
+    }
+
+    fun applyAiSuggestion(suggestion: String) {
+        viewModelScope.launch {
+            if (suggestion.contains("Lockout", ignoreCase = true)) {
+                val existing = _uiState.value.services.find { it.name.contains("Lockout", ignoreCase = true) }
+                if (existing != null) {
+                    val updatedKw = (existing.aiKeywords + "Emergency Lockout").distinct()
+                    val updated = existing.copy(aiKeywords = updatedKw)
+                    repository.saveService(updated)
+                    _uiState.update { it.copy(toastMessage = "Added 'Emergency Lockout' keyword!") }
+                } else {
+                    val newService = FieldService(
+                        id = "s_" + UUID.randomUUID().toString().take(6),
+                        name = "Emergency Lockout Service",
+                        category = "LOCKSMITH",
+                        basePrice = 95.0,
+                        ratePerMile = 0.0,
+                        aiKeywords = listOf("Emergency Lockout", "Locked Out", "Keys Inside"),
+                        status = "ACTIVE"
+                    )
+                    repository.saveService(newService)
+                    _uiState.update { it.copy(toastMessage = "Added Emergency Lockout Service!") }
+                }
+            } else if (suggestion.contains("Fuel", ignoreCase = true)) {
+                val newService = FieldService(
+                    id = "s_" + UUID.randomUUID().toString().take(6),
+                    name = "Emergency Fuel Delivery",
+                    category = "ROADSIDE",
+                    basePrice = 60.0,
+                    ratePerMile = 2.50,
+                    aiKeywords = listOf("Fuel", "Out of Gas", "Diesel", "Gasoline"),
+                    status = "ACTIVE"
+                )
+                repository.saveService(newService)
+                _uiState.update { it.copy(toastMessage = "Added Emergency Fuel Delivery Service ($60)!") }
+            } else {
+                _uiState.update { it.copy(toastMessage = "AI Suggestion applied!") }
+            }
+        }
+    }
+
+    fun runAiAutoSetup(query: String) {
+        viewModelScope.launch {
+            val q = query.lowercase()
+            val createdServices = mutableListOf<FieldService>()
+
+            if (q.contains("towing") || q.contains("tow")) {
+                createdServices.add(FieldService(id = "s_" + UUID.randomUUID().toString().take(6), name = "Heavy Duty Towing", category = "TOWING", basePrice = 150.0, ratePerMile = 6.0, aiKeywords = listOf("Semi Towing", "Heavy Tow", "Winched"), status = "ACTIVE"))
+                createdServices.add(FieldService(id = "s_" + UUID.randomUUID().toString().take(6), name = "Flatbed Transport", category = "TOWING", basePrice = 110.0, ratePerMile = 5.0, aiKeywords = listOf("Flatbed", "Exotic Car Tow", "AWD Towing"), status = "ACTIVE"))
+            } else if (q.contains("mechanic") || q.contains("auto")) {
+                createdServices.add(FieldService(id = "s_" + UUID.randomUUID().toString().take(6), name = "Mobile Diagnostic Scan", category = "MECHANIC", basePrice = 89.0, ratePerMile = 1.5, aiKeywords = listOf("Check Engine", "OBD Scan", "No Start"), status = "ACTIVE"))
+                createdServices.add(FieldService(id = "s_" + UUID.randomUUID().toString().take(6), name = "Brake & Battery Swap", category = "MECHANIC", basePrice = 120.0, ratePerMile = 2.0, aiKeywords = listOf("Dead Battery", "Brake Noise", "Alternator"), status = "ACTIVE"))
+            } else if (q.contains("plumbing") || q.contains("pipe")) {
+                createdServices.add(FieldService(id = "s_" + UUID.randomUUID().toString().take(6), name = "Drain Unclogging", category = "PLUMBING", basePrice = 125.0, ratePerMile = 0.0, aiKeywords = listOf("Clogged Drain", "Toilet Overflow", "Sink Backup"), status = "ACTIVE"))
+                createdServices.add(FieldService(id = "s_" + UUID.randomUUID().toString().take(6), name = "Emergency Pipe Repair", category = "PLUMBING", basePrice = 185.0, ratePerMile = 0.0, aiKeywords = listOf("Burst Pipe", "Water Leak", "Main Valve"), status = "ACTIVE"))
+            } else {
+                val serviceName = query.ifBlank { "Custom Service Call" }
+                createdServices.add(FieldService(id = "s_" + UUID.randomUUID().toString().take(6), name = serviceName, category = "GENERAL", basePrice = 95.0, ratePerMile = 3.0, aiKeywords = listOf("Emergency", "Onsite Service", "Dispatch"), status = "ACTIVE"))
+            }
+
+            createdServices.forEach { repository.saveService(it) }
+            _uiState.update { it.copy(toastMessage = "AI Auto-Setup generated ${createdServices.size} services!") }
         }
     }
 
@@ -380,6 +462,40 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             repository.saveWebConfig(config)
             authRepository.syncWebConfigToFirestore(config, _uiState.value.companyProfile)
             _uiState.update { it.copy(isBuildingSite = false, toastMessage = "AI Micro-Site Deployed & Persisted to Firestore!") }
+        }
+    }
+
+    fun bookCustomerJobFromMicroSite(
+        customerName: String,
+        customerPhone: String,
+        address: String,
+        serviceTitle: String,
+        depositAmount: Double
+    ) {
+        viewModelScope.launch {
+            val newJob = Job(
+                id = "job_web_" + UUID.randomUUID().toString().take(6),
+                customerName = customerName,
+                customerPhone = customerPhone,
+                customerLocation = address,
+                serviceTitle = serviceTitle,
+                serviceCategory = "WEB_BOOKING",
+                status = JobStatus.DEPOSIT_PAID,
+                estimatedTotal = depositAmount * 2.5,
+                depositAmount = depositAmount,
+                notes = "Booked via Web Micro-Site (${_uiState.value.webConfig.deployedUrl})"
+            )
+            repository.saveJob(newJob)
+            calendarRepository.createJobCalendarEvent(newJob)
+
+            val smsText = "Receipt from ${_uiState.value.companyProfile.name}: $depositAmount deposit paid! Dispatch confirmed for $address. Technician en route."
+            notificationHelper.sendInstantSms(customerPhone, smsText)
+
+            _uiState.update {
+                it.copy(
+                    toastMessage = "Micro-Site Booking Received! Job created & $depositAmount deposit collected from $customerName."
+                )
+            }
         }
     }
 

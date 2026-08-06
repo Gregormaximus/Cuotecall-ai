@@ -73,10 +73,20 @@ class NotificationHelper(private val context: Context) {
                 SmsManager.getDefault()
             }
             smsManager.sendTextMessage(phoneNumber, null, messageText, null, null)
-            Toast.makeText(context, "Instant SMS sent to $phoneNumber", Toast.LENGTH_SHORT).show()
+            showToast("Instant SMS sent to $phoneNumber")
         } catch (e: Exception) {
             e.printStackTrace()
-            Toast.makeText(context, "SMS Simulated to $phoneNumber", Toast.LENGTH_SHORT).show()
+            showToast("SMS Simulated to $phoneNumber")
+        }
+    }
+
+    private fun showToast(msg: String) {
+        try {
+            android.os.Handler(android.os.Looper.getMainLooper()).post {
+                Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
     }
 }

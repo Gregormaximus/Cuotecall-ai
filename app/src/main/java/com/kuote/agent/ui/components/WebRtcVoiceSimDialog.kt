@@ -51,8 +51,9 @@ fun WebRtcVoiceSimDialog(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(24.dp))
-                .border(1.dp, FastingoCyan, RoundedCornerShape(24.dp)),
-            color = FastingoCardBg
+                .border(1.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(24.dp)),
+            color = MaterialTheme.colorScheme.surface,
+            contentColor = MaterialTheme.colorScheme.onSurface
         ) {
             Column(
                 modifier = Modifier
@@ -69,13 +70,13 @@ fun WebRtcVoiceSimDialog(
                         modifier = Modifier
                             .size(10.dp)
                             .clip(CircleShape)
-                            .background(FastingoGreen)
+                            .background(MaterialTheme.colorScheme.secondary)
                     )
                     Text(
                         text = "WebRTC Live AI Audio Stream",
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
-                        color = FastingoGreen
+                        color = MaterialTheme.colorScheme.secondary
                     )
                 }
 
@@ -85,13 +86,13 @@ fun WebRtcVoiceSimDialog(
                     text = config.siteTitle,
                     fontSize = 22.sp,
                     fontWeight = FontWeight.Black,
-                    color = FastingoTextPrimary
+                    color = MaterialTheme.colorScheme.onSurface
                 )
 
                 Text(
                     text = config.siteSubtitle,
                     fontSize = 13.sp,
-                    color = FastingoTextSecondary
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
 
                 Spacer(modifier = Modifier.height(28.dp))
@@ -103,19 +104,19 @@ fun WebRtcVoiceSimDialog(
                             .size(90.dp)
                             .scale(pulseScale)
                             .clip(CircleShape)
-                            .background(FastingoCyanDark.copy(alpha = 0.4f))
+                            .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f))
                     )
                     Box(
                         modifier = Modifier
                             .size(70.dp)
                             .clip(CircleShape)
-                            .background(FastingoCyan),
+                            .background(MaterialTheme.colorScheme.primary),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = Icons.Default.VolumeUp,
                             contentDescription = "Voice Stream",
-                            tint = FastingoBackground,
+                            tint = MaterialTheme.colorScheme.onPrimary,
                             modifier = Modifier.size(36.dp)
                         )
                     }
@@ -125,15 +126,15 @@ fun WebRtcVoiceSimDialog(
 
                 // Real-time Live Transcript Card
                 Surface(
-                    color = FastingoSurface,
+                    color = MaterialTheme.colorScheme.surfaceVariant,
                     shape = RoundedCornerShape(12.dp),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, FastingoBorder),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text(
                         text = "\"$transcriptText\"",
                         fontSize = 14.sp,
-                        color = FastingoTextPrimary,
+                        color = MaterialTheme.colorScheme.onSurface,
                         modifier = Modifier.padding(14.dp),
                         textAlign = TextAlign.Center
                     )

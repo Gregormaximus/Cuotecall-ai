@@ -80,11 +80,12 @@ fun DashboardScreen(
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 90.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
             // 1. Firestore Live Sync Banner
             item {
-                FirestoreSyncHeader()
+                FirestoreSyncHeader(modifier = Modifier.widthIn(max = 600.dp))
             }
 
             // 2. Real-time Analytics Cards Grid (4 Cards)
@@ -98,7 +99,10 @@ fun DashboardScreen(
                 )
                 Spacer(modifier = Modifier.height(10.dp))
 
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    modifier = Modifier.widthIn(max = 600.dp)
+                ) {
                     // Row 1: Missed Calls Handled & Auto-SMS Sent
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -157,78 +161,92 @@ fun DashboardScreen(
             // 2b. Recent Conversations Log (Live Firestore Stream)
             item {
                 Spacer(modifier = Modifier.height(4.dp))
-                RecentConversationsSection(conversations = recentConversations)
+                Box(modifier = Modifier.fillMaxWidth().widthIn(max = 600.dp), contentAlignment = Alignment.Center) {
+                    RecentConversationsSection(conversations = recentConversations)
+                }
             }
 
             // 3. Monthly Revenue Trend Chart (NEW FEATURE - Interactive Stripe Income Trend)
             item {
                 Spacer(modifier = Modifier.height(4.dp))
-                MonthlyRevenueTrendChart(
-                    monthlyTrend = analyticsStats.monthlyRevenueTrend,
-                    momGrowthPercentage = analyticsStats.momGrowthPercentage,
-                    selectedMonthIndex = selectedMonthIndex,
-                    onSelectMonth = { selectedMonthIndex = if (selectedMonthIndex == it) null else it }
-                )
+                Box(modifier = Modifier.fillMaxWidth().widthIn(max = 600.dp), contentAlignment = Alignment.Center) {
+                    MonthlyRevenueTrendChart(
+                        monthlyTrend = analyticsStats.monthlyRevenueTrend,
+                        momGrowthPercentage = analyticsStats.momGrowthPercentage,
+                        selectedMonthIndex = selectedMonthIndex,
+                        onSelectMonth = { selectedMonthIndex = if (selectedMonthIndex == it) null else it }
+                    )
+                }
             }
 
             // 4. Selected Month Revenue Breakdown Popover Card
             if (selectedMonthIndex != null && selectedMonthIndex!! in analyticsStats.monthlyRevenueTrend.indices) {
                 val monthData = analyticsStats.monthlyRevenueTrend[selectedMonthIndex!!]
                 item {
-                    MonthRevenueDetailCard(monthData = monthData)
+                    Box(modifier = Modifier.fillMaxWidth().widthIn(max = 600.dp), contentAlignment = Alignment.Center) {
+                        MonthRevenueDetailCard(monthData = monthData)
+                    }
                 }
             }
 
             // 5. Weekly Overview Bar Chart
             item {
                 Spacer(modifier = Modifier.height(4.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "WEEKLY OVERVIEW (LAST 7 DAYS)",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Black,
-                        color = MaterialTheme.colorScheme.primary,
-                        letterSpacing = 1.sp
-                    )
+                Box(modifier = Modifier.fillMaxWidth().widthIn(max = 600.dp), contentAlignment = Alignment.Center) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "WEEKLY OVERVIEW (LAST 7 DAYS)",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Black,
+                                color = MaterialTheme.colorScheme.primary,
+                                letterSpacing = 1.sp
+                            )
 
-                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                        FilterChip(
-                            selected = selectedChartMetric == 0,
-                            onClick = { selectedChartMetric = 0 },
-                            label = { Text("Calls/SMS", fontSize = 10.sp) }
-                        )
-                        FilterChip(
-                            selected = selectedChartMetric == 1,
-                            onClick = { selectedChartMetric = 1 },
-                            label = { Text("Clicks", fontSize = 10.sp) }
-                        )
-                        FilterChip(
-                            selected = selectedChartMetric == 2,
-                            onClick = { selectedChartMetric = 2 },
-                            label = { Text("Deposits", fontSize = 10.sp) }
+                            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                FilterChip(
+                                    selected = selectedChartMetric == 0,
+                                    onClick = { selectedChartMetric = 0 },
+                                    label = { Text("Calls/SMS", fontSize = 10.sp) }
+                                )
+                                FilterChip(
+                                    selected = selectedChartMetric == 1,
+                                    onClick = { selectedChartMetric = 1 },
+                                    label = { Text("Clicks", fontSize = 10.sp) }
+                                )
+                                FilterChip(
+                                    selected = selectedChartMetric == 2,
+                                    onClick = { selectedChartMetric = 2 },
+                                    label = { Text("Deposits", fontSize = 10.sp) }
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        WeeklyBarChart(
+                            weeklyOverview = analyticsStats.weeklyOverview,
+                            selectedMetric = selectedChartMetric,
+                            selectedDayIndex = selectedDayIndex,
+                            onSelectDay = { selectedDayIndex = if (selectedDayIndex == it) null else it }
                         )
                     }
                 }
-
-                Spacer(modifier = Modifier.height(10.dp))
-
-                WeeklyBarChart(
-                    weeklyOverview = analyticsStats.weeklyOverview,
-                    selectedMetric = selectedChartMetric,
-                    selectedDayIndex = selectedDayIndex,
-                    onSelectDay = { selectedDayIndex = if (selectedDayIndex == it) null else it }
-                )
             }
 
             // 6. Selected Day Detail Popover
             if (selectedDayIndex != null && selectedDayIndex!! in analyticsStats.weeklyOverview.indices) {
                 val dayData = analyticsStats.weeklyOverview[selectedDayIndex!!]
                 item {
-                    DayDetailCard(dayData = dayData)
+                    Box(modifier = Modifier.fillMaxWidth().widthIn(max = 600.dp), contentAlignment = Alignment.Center) {
+                        DayDetailCard(dayData = dayData)
+                    }
                 }
             }
 
@@ -241,15 +259,18 @@ fun DashboardScreen(
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Black,
                         color = MaterialTheme.colorScheme.primary,
-                        letterSpacing = 1.sp
+                        letterSpacing = 1.sp,
+                        modifier = Modifier.widthIn(max = 600.dp)
                     )
                 }
 
                 items(jobs) { job ->
-                    JobSummaryCard(
-                        job = job,
-                        onClick = { onSelectJob(job) }
-                    )
+                    Box(modifier = Modifier.fillMaxWidth().widthIn(max = 600.dp), contentAlignment = Alignment.Center) {
+                        JobSummaryCard(
+                            job = job,
+                            onClick = { onSelectJob(job) }
+                        )
+                    }
                 }
             }
 
@@ -261,16 +282,19 @@ fun DashboardScreen(
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Black,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    letterSpacing = 1.sp
+                    letterSpacing = 1.sp,
+                    modifier = Modifier.widthIn(max = 600.dp)
                 )
             }
 
             items(quotes) { quote ->
-                CaughtCallCard(
-                    quote = quote,
-                    onApprove = { onApproveQuote(quote) },
-                    onDecline = { onDeclineQuote(quote) }
-                )
+                Box(modifier = Modifier.fillMaxWidth().widthIn(max = 600.dp), contentAlignment = Alignment.Center) {
+                    CaughtCallCard(
+                        quote = quote,
+                        onApprove = { onApproveQuote(quote) },
+                        onDecline = { onDeclineQuote(quote) }
+                    )
+                }
             }
         }
 
@@ -681,9 +705,9 @@ fun MonthRevenueDetailCard(monthData: MonthRevenue) {
 }
 
 @Composable
-fun FirestoreSyncHeader() {
+fun FirestoreSyncHeader(modifier: Modifier = Modifier) {
     Surface(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
             .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f), RoundedCornerShape(12.dp)),

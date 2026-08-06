@@ -22,6 +22,7 @@ class MissedCallReceiver : BroadcastReceiver() {
         if (intent.action == TelephonyManager.ACTION_PHONE_STATE_CHANGED) {
             val stateStr = intent.getStringExtra(TelephonyManager.EXTRA_STATE)
             val incomingNumber = intent.getStringExtra(TelephonyManager.EXTRA_INCOMING_NUMBER) ?: ""
+            android.util.Log.d("MissedCallReceiver", "Phone state changed: $stateStr, number: $incomingNumber")
 
             when (stateStr) {
                 TelephonyManager.EXTRA_STATE_RINGING -> {
@@ -34,9 +35,15 @@ class MissedCallReceiver : BroadcastReceiver() {
                 }
                 TelephonyManager.EXTRA_STATE_IDLE -> {
                     // Call ended. If it was ringing and never went offhook -> MISSED CALL!
+                    android.util.Log.d("MissedCallReceiver", "IDLE: isIncomingRinging: $isIncomingRinging, lastIncomingNumber: $lastIncomingNumber")
                     if (isIncomingRinging) {
                         isIncomingRinging = false
-                        val missedNumber = if (lastIncomingNumber.isNotBlank()) lastIncomingNumber else "+1 (555) 012-3456"
+                        val missedNumber = when {
+                            lastIncomingNumber.isNotBlank() -> lastIncomingNumber
+                            incomingNumber.isNotBlank() -> incomingNumber
+                            else -> "+1 (555) 012-3456"
+                        }
+                        android.util.Log.d("MissedCallReceiver", "Processing missed call for: $missedNumber")
                         processMissedCall(context, missedNumber)
                     }
                 }
@@ -49,6 +56,7 @@ class MissedCallReceiver : BroadcastReceiver() {
         val repository = KuoteRepository(context.applicationContext)
         val notifHelper = NotificationHelper(context.applicationContext)
         val intakeEngine = MultimodalIntakeEngine()
+        com.kuote.agent.util.ContactCache.init(context.applicationContext)
 
         CoroutineScope(Dispatchers.IO).launch {
             val company = repository.getCompanyProfileDirect()

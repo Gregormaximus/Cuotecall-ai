@@ -52,7 +52,8 @@ fun KuoteBottomBar(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 4.dp, vertical = 4.dp),
+                .navigationBarsPadding()
+                .padding(horizontal = 4.dp, vertical = 6.dp),
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -67,7 +68,7 @@ fun KuoteBottomBar(
                         .clip(RoundedCornerShape(12.dp))
                         .background(if (isSelected) MaterialTheme.colorScheme.secondaryContainer else androidx.compose.ui.graphics.Color.Transparent)
                         .clickable { onTabSelected(item.index) }
-                        .padding(horizontal = 4.dp, vertical = 4.dp)
+                        .padding(horizontal = 2.dp, vertical = 4.dp)
                 ) {
                     Icon(
                         imageVector = item.icon,
@@ -79,6 +80,8 @@ fun KuoteBottomBar(
                     Text(
                         text = item.title,
                         fontSize = 10.sp,
+                        maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
                         color = if (isSelected) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onSurfaceVariant
                     )

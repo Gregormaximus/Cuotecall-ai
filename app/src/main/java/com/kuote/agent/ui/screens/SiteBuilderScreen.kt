@@ -3,6 +3,7 @@ package com.kuote.agent.ui.screens
 import android.content.Intent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
@@ -24,19 +25,39 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.kuote.agent.data.model.CompanyProfile
 import com.kuote.agent.data.model.CompanyWebConfig
+import com.kuote.agent.data.model.FieldService
+import com.kuote.agent.ui.components.MicroSiteWebPreviewDialog
 import com.kuote.agent.ui.theme.*
 
 @Composable
 fun SiteBuilderScreen(
     config: CompanyWebConfig,
+    companyProfile: CompanyProfile = CompanyProfile(),
+    services: List<FieldService> = emptyList(),
     promptText: String,
     isBuilding: Boolean,
     onPromptChange: (String) -> Unit,
     onGenerate: (String) -> Unit,
-    onOpenVoiceSim: () -> Unit
+    onOpenVoiceSim: () -> Unit,
+    onBookJob: (customerName: String, customerPhone: String, address: String, serviceName: String, depositAmount: Double) -> Unit = { _, _, _, _, _ -> }
 ) {
     val context = LocalContext.current
+    var isWebPreviewOpen by remember { mutableStateOf(false) }
+
+    if (isWebPreviewOpen) {
+        MicroSiteWebPreviewDialog(
+            config = config,
+            companyProfile = companyProfile,
+            services = services,
+            onDismiss = { isWebPreviewOpen = false },
+            onOpenVoiceSim = onOpenVoiceSim,
+            onBookJob = { name, phone, address, serviceName, deposit ->
+                onBookJob(name, phone, address, serviceName, deposit)
+            }
+        )
+    }
 
     LazyColumn(
         modifier = Modifier
@@ -163,6 +184,7 @@ fun SiteBuilderScreen(
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(10.dp))
                             .background(MaterialTheme.colorScheme.surfaceVariant)
+                            .clickable { isWebPreviewOpen = true }
                             .padding(horizontal = 12.dp, vertical = 10.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
@@ -177,17 +199,10 @@ fun SiteBuilderScreen(
 
                         Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                             IconButton(
-                                onClick = {
-                                    try {
-                                        val browserIntent = Intent(Intent.ACTION_VIEW, android.net.Uri.parse(config.deployedUrl))
-                                        context.startActivity(browserIntent)
-                                    } catch (e: Exception) {
-                                        e.printStackTrace()
-                                    }
-                                },
+                                onClick = { isWebPreviewOpen = true },
                                 modifier = Modifier.size(32.dp)
                             ) {
-                                Icon(Icons.Default.Launch, contentDescription = "Open in Browser", tint = MaterialTheme.colorScheme.primary)
+                                Icon(Icons.Default.Launch, contentDescription = "Open Web Page", tint = MaterialTheme.colorScheme.primary)
                             }
 
                             IconButton(
@@ -203,6 +218,22 @@ fun SiteBuilderScreen(
                                 Icon(Icons.Default.Share, contentDescription = "Share", tint = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                         }
+                    }
+
+                    Button(
+                        onClick = { isWebPreviewOpen = true },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(42.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                        ),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Icon(Icons.Default.Launch, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Open Full Interactive Web Page", fontSize = 13.sp, fontWeight = FontWeight.Bold)
                     }
                 }
             }

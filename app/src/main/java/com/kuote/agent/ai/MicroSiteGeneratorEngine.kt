@@ -67,7 +67,7 @@ class MicroSiteGeneratorEngine {
                         voiceCallButtonText = parsed.voice_call_button_text,
                         voiceCallDescription = parsed.voice_call_description,
                         quickDepositFee = parsed.quick_deposit_fee,
-                        deployedUrl = "https://ais-dev-evjq6zhfgibldhq4rn7mw2-55455507008.us-west2.run.app/?slug=$slug"
+                        deployedUrl = "https://quotecall-ai.web.app/site/$slug"
                     )
                 }
             } catch (e: Exception) {
@@ -85,7 +85,7 @@ class MicroSiteGeneratorEngine {
             voiceCallButtonText = "Instant AI Dispatch",
             voiceCallDescription = "Speak directly with our AI to book an instant service",
             quickDepositFee = companyProfile.defaultDeposit,
-            deployedUrl = "https://ais-dev-evjq6zhfgibldhq4rn7mw2-55455507008.us-west2.run.app/?slug=$slug"
+            deployedUrl = "https://quotecall-ai.web.app/site/$slug"
         )
     }
 

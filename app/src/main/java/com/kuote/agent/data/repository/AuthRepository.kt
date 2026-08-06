@@ -346,7 +346,7 @@ class AuthRepository(private val context: Context) {
 
             val systemInstruction = "You are CallCatch AI, the universal automated business assistant for ${companyProfile.name} (${companyProfile.industry}). You represent the business during missed calls or WebRTC voice sessions. Analyze customer needs, gather job details and address, quote prices, demand a $${config.quickDepositFee} security deposit, and close the deal with a Stripe Connect checkout link."
 
-            val liveUrl = "https://ais-dev-evjq6zhfgibldhq4rn7mw2-55455507008.us-west2.run.app/?slug=$slug"
+            val liveUrl = "https://quotecall-ai.web.app/site/$slug"
 
             val micrositeDoc = mapOf(
                 "slug" to slug,

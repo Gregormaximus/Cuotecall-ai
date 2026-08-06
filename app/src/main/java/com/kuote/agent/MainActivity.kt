@@ -87,7 +87,7 @@ class MainActivity : ComponentActivity() {
                             KuoteTopBar(
                                 isAgentActive = uiState.isAgentActive,
                                 onToggleAgent = { viewModel.toggleAgentActive(it) },
-                                onAccountClick = { viewModel.selectTab(4) }
+                                onAccountClick = { viewModel.selectTab(5) }
                             )
                         }
                     },
@@ -149,11 +149,16 @@ class MainActivity : ComponentActivity() {
                                 )
                                 2 -> SiteBuilderScreen(
                                     config = uiState.webConfig,
+                                    companyProfile = uiState.companyProfile,
+                                    services = uiState.services,
                                     promptText = uiState.sitePromptText,
                                     isBuilding = uiState.isBuildingSite,
                                     onPromptChange = { viewModel.setSitePromptText(it) },
                                     onGenerate = { viewModel.generateMicroSite(it) },
-                                    onOpenVoiceSim = { viewModel.toggleWebRtcSim(true) }
+                                    onOpenVoiceSim = { viewModel.toggleWebRtcSim(true) },
+                                    onBookJob = { name, phone, address, serviceName, deposit ->
+                                        viewModel.bookCustomerJobFromMicroSite(name, phone, address, serviceName, deposit)
+                                    }
                                 )
                                 3 -> ProfileScreen(
                                     profile = uiState.companyProfile,
@@ -163,8 +168,13 @@ class MainActivity : ComponentActivity() {
                                 )
                                 4 -> ServiceCatalogScreen(
                                     services = uiState.services,
+                                    isSmartPricingEnabled = uiState.isDynamicPricingEnabled,
                                     onAddServiceClick = { viewModel.setAddServiceDialogOpen(true) },
-                                    onDeleteService = { viewModel.deleteService(it) }
+                                    onDeleteService = { viewModel.deleteService(it) },
+                                    onUpdateService = { viewModel.updateService(it) },
+                                    onToggleSmartPricing = { viewModel.toggleDynamicPricing(it) },
+                                    onAutoSetup = { viewModel.runAiAutoSetup(it) },
+                                    onApplyAiSuggestion = { viewModel.applyAiSuggestion(it) }
                                 )
                                 5 -> AccountScreen(
                                     profile = uiState.companyProfile,

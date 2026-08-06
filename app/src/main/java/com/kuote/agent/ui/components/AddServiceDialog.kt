@@ -30,8 +30,9 @@ fun AddServiceDialog(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(20.dp))
-                .border(1.dp, FastingoBorder, RoundedCornerShape(20.dp)),
-            color = FastingoCardBg
+                .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(20.dp)),
+            color = MaterialTheme.colorScheme.surface,
+            contentColor = MaterialTheme.colorScheme.onSurface
         ) {
             Column(
                 modifier = Modifier
@@ -43,7 +44,7 @@ fun AddServiceDialog(
                     text = "Add New Service",
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
-                    color = FastingoTextPrimary
+                    color = MaterialTheme.colorScheme.onSurface
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -51,13 +52,19 @@ fun AddServiceDialog(
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
-                    label = { Text("Service Name (e.g. Battery Jumpstart)") },
+                    label = { Text("Service Name (e.g. Battery Jumpstart)", color = MaterialTheme.colorScheme.onSurfaceVariant) },
                     modifier = Modifier.fillMaxWidth(),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = FastingoCyan,
-                        unfocusedBorderColor = FastingoBorder,
-                        focusedLabelColor = FastingoCyan
-                    )
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                        focusedLabelColor = MaterialTheme.colorScheme.primary,
+                        unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant
+                    ),
+                    shape = RoundedCornerShape(10.dp)
                 )
 
                 Spacer(modifier = Modifier.height(12.dp))
@@ -69,23 +76,37 @@ fun AddServiceDialog(
                     OutlinedTextField(
                         value = basePriceText,
                         onValueChange = { basePriceText = it },
-                        label = { Text("Base Price ($)") },
+                        label = { Text("Base Price ($)", color = MaterialTheme.colorScheme.onSurfaceVariant) },
                         modifier = Modifier.weight(1f),
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = FastingoCyan,
-                            unfocusedBorderColor = FastingoBorder
-                        )
+                            focusedBorderColor = MaterialTheme.colorScheme.primary,
+                            unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                            focusedLabelColor = MaterialTheme.colorScheme.primary,
+                            unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                            unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                            focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant
+                        ),
+                        shape = RoundedCornerShape(10.dp)
                     )
 
                     OutlinedTextField(
                         value = ratePerMileText,
                         onValueChange = { ratePerMileText = it },
-                        label = { Text("Rate/Mile ($)") },
+                        label = { Text("Rate/Mile ($)", color = MaterialTheme.colorScheme.onSurfaceVariant) },
                         modifier = Modifier.weight(1f),
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = FastingoCyan,
-                            unfocusedBorderColor = FastingoBorder
-                        )
+                            focusedBorderColor = MaterialTheme.colorScheme.primary,
+                            unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                            focusedLabelColor = MaterialTheme.colorScheme.primary,
+                            unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                            unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                            focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant
+                        ),
+                        shape = RoundedCornerShape(10.dp)
                     )
                 }
 
@@ -94,12 +115,19 @@ fun AddServiceDialog(
                 OutlinedTextField(
                     value = keywordsText,
                     onValueChange = { keywordsText = it },
-                    label = { Text("AI Keywords (comma separated)") },
+                    label = { Text("AI Keywords (comma separated)", color = MaterialTheme.colorScheme.onSurfaceVariant) },
                     modifier = Modifier.fillMaxWidth(),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = FastingoCyan,
-                        unfocusedBorderColor = FastingoBorder
-                    )
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                        focusedLabelColor = MaterialTheme.colorScheme.primary,
+                        unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant
+                    ),
+                    shape = RoundedCornerShape(10.dp)
                 )
 
                 Spacer(modifier = Modifier.height(20.dp))
@@ -110,7 +138,7 @@ fun AddServiceDialog(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     TextButton(onClick = onDismiss) {
-                        Text("Cancel", color = FastingoTextSecondary)
+                        Text("Cancel", color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
 
                     Spacer(modifier = Modifier.width(8.dp))
@@ -128,8 +156,8 @@ fun AddServiceDialog(
                             )
                         },
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = FastingoCyan,
-                            contentColor = FastingoBackground
+                            containerColor = MaterialTheme.colorScheme.primary,
+                            contentColor = MaterialTheme.colorScheme.onPrimary
                         ),
                         shape = RoundedCornerShape(12.dp)
                     ) {

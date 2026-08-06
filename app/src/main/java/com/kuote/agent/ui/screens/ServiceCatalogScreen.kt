@@ -11,6 +11,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Search
@@ -29,10 +30,17 @@ import com.kuote.agent.ui.theme.*
 @Composable
 fun ServiceCatalogScreen(
     services: List<FieldService>,
+    isSmartPricingEnabled: Boolean = false,
+    aiSuggestions: List<String> = listOf("Add 'Emergency Lockout' keyword", "Add Fuel Delivery service ($60)"),
     onAddServiceClick: () -> Unit,
-    onDeleteService: (FieldService) -> Unit
+    onDeleteService: (FieldService) -> Unit,
+    onUpdateService: (FieldService) -> Unit = {},
+    onToggleSmartPricing: (Boolean) -> Unit = {},
+    onAutoSetup: (String) -> Unit = {},
+    onApplyAiSuggestion: (String) -> Unit = {}
 ) {
     var searchQuery by remember { mutableStateOf("") }
+    var autoSetupText by remember { mutableStateOf("") }
 
     val filteredServices = remember(searchQuery, services) {
         if (searchQuery.isBlank()) services
@@ -64,11 +72,84 @@ fun ServiceCatalogScreen(
                         fontWeight = FontWeight.Black,
                         color = MaterialTheme.colorScheme.onBackground
                     )
-                    Text(
-                        text = "Manage your active field services and AI matching logic.",
-                        fontSize = 13.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "AI-powered catalog management.",
+                            fontSize = 13.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("Smart Pricing", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Switch(
+                                checked = isSmartPricingEnabled,
+                                onCheckedChange = onToggleSmartPricing
+                            )
+                        }
+                    }
+                }
+            }
+
+            // AI Auto-Setup & Presets
+            item {
+                Surface(
+                    modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)),
+                    color = MaterialTheme.colorScheme.surfaceVariant
+                ) {
+                    Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Text("AI Auto-Setup", fontWeight = FontWeight.Bold)
+                        OutlinedTextField(
+                            value = autoSetupText,
+                            onValueChange = { autoSetupText = it },
+                            placeholder = { Text("Describe your trade (e.g. Towing, Plumbing)...") },
+                            trailingIcon = {
+                                IconButton(onClick = {
+                                    if (autoSetupText.isNotBlank()) {
+                                        onAutoSetup(autoSetupText)
+                                    }
+                                }) {
+                                    Icon(Icons.Default.Search, contentDescription = "Run Auto-Setup")
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(10.dp)
+                        )
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            listOf("Towing", "Mechanic", "Plumbing").forEach { preset ->
+                                FilterChip(
+                                    selected = autoSetupText.equals(preset, ignoreCase = true),
+                                    onClick = {
+                                        autoSetupText = preset
+                                        onAutoSetup(preset)
+                                    },
+                                    label = { Text(preset) }
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // AI Suggestions Banner
+            item {
+                val currentSuggestion = aiSuggestions.firstOrNull() ?: "Add 'Emergency Lockout' keyword"
+                Surface(
+                    modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)),
+                    color = MaterialTheme.colorScheme.primaryContainer
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text("AI Suggestions", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                        Text(currentSuggestion, fontSize = 12.sp, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                            TextButton(onClick = { onApplyAiSuggestion(currentSuggestion) }) {
+                                Text("Apply", color = MaterialTheme.colorScheme.onPrimaryContainer, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
                 }
             }
 
@@ -96,7 +177,8 @@ fun ServiceCatalogScreen(
             items(filteredServices, key = { it.id }) { service ->
                 ServiceCatalogCard(
                     service = service,
-                    onDelete = { onDeleteService(service) }
+                    onDelete = { onDeleteService(service) },
+                    onUpdate = onUpdateService
                 )
             }
 
@@ -170,9 +252,16 @@ fun ServiceCatalogScreen(
 @Composable
 fun ServiceCatalogCard(
     service: FieldService,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    onUpdate: (FieldService) -> Unit = {}
 ) {
     var isExpanded by remember { mutableStateOf(service.name.contains("Towing")) }
+    var isEditing by remember { mutableStateOf(false) }
+
+    var editName by remember(service) { mutableStateOf(service.name) }
+    var editBasePrice by remember(service) { mutableStateOf(service.basePrice.toString()) }
+    var editRatePerMile by remember(service) { mutableStateOf(service.ratePerMile.toString()) }
+    var editKeywords by remember(service) { mutableStateOf(service.aiKeywords.joinToString(", ")) }
 
     Surface(
         modifier = Modifier
@@ -193,7 +282,7 @@ fun ServiceCatalogCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column {
+                Column(modifier = Modifier.weight(1f)) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -216,121 +305,174 @@ fun ServiceCatalogCard(
                     )
                 }
 
-                IconButton(onClick = { isExpanded = !isExpanded }) {
-                    Icon(
-                        imageVector = if (isExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
-                        contentDescription = "Expand",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(onClick = onDelete) {
+                        Icon(
+                            imageVector = Icons.Default.Delete,
+                            contentDescription = "Delete Service",
+                            tint = MaterialTheme.colorScheme.error.copy(alpha = 0.8f)
+                        )
+                    }
+
+                    IconButton(onClick = { isExpanded = !isExpanded }) {
+                        Icon(
+                            imageVector = if (isExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                            contentDescription = "Expand",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
             }
 
             if (isExpanded) {
-                // Price & Rate/Mile Row
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(24.dp)
-                ) {
-                    Column {
-                        Text(
-                            text = "BASE PRICE",
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                if (isEditing) {
+                    // Inline Edit Form
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        OutlinedTextField(
+                            value = editName,
+                            onValueChange = { editName = it },
+                            label = { Text("Service Name") },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(8.dp)
                         )
-                        Text(
-                            text = "$${String.format("%.2f", service.basePrice)}",
-                            fontSize = 20.sp,
-                            fontWeight = FontWeight.Black,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    }
 
-                    if (service.ratePerMile > 0) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            OutlinedTextField(
+                                value = editBasePrice,
+                                onValueChange = { editBasePrice = it },
+                                label = { Text("Base Price ($)") },
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(8.dp)
+                            )
+                            OutlinedTextField(
+                                value = editRatePerMile,
+                                onValueChange = { editRatePerMile = it },
+                                label = { Text("Rate/Mile ($)") },
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(8.dp)
+                            )
+                        }
+
+                        OutlinedTextField(
+                            value = editKeywords,
+                            onValueChange = { editKeywords = it },
+                            label = { Text("AI Keywords (comma separated)") },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(8.dp)
+                        )
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.End,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            TextButton(onClick = { isEditing = false }) {
+                                Text("Cancel", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Button(
+                                onClick = {
+                                    val newBase = editBasePrice.toDoubleOrNull() ?: service.basePrice
+                                    val newRate = editRatePerMile.toDoubleOrNull() ?: service.ratePerMile
+                                    val kwList = editKeywords.split(",").map { it.trim() }.filter { it.isNotBlank() }
+                                    val updated = service.copy(
+                                        name = editName.ifBlank { service.name },
+                                        basePrice = newBase,
+                                        ratePerMile = newRate,
+                                        aiKeywords = kwList
+                                    )
+                                    onUpdate(updated)
+                                    isEditing = false
+                                },
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Text("Save Changes")
+                            }
+                        }
+                    }
+                } else {
+                    // Price & Rate/Mile Row
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(24.dp)
+                    ) {
                         Column {
                             Text(
-                                text = "RATE/MILE",
+                                text = "BASE PRICE",
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                             Text(
-                                text = "$${String.format("%.2f", service.ratePerMile)}",
+                                text = "$${String.format("%.2f", service.basePrice)}",
                                 fontSize = 20.sp,
                                 fontWeight = FontWeight.Black,
                                 color = MaterialTheme.colorScheme.primary
                             )
                         }
+
+                        if (service.ratePerMile > 0) {
+                            Column {
+                                Text(
+                                    text = "RATE/MILE",
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Text(
+                                    text = "$${String.format("%.2f", service.ratePerMile)}",
+                                    fontSize = 20.sp,
+                                    fontWeight = FontWeight.Black,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        }
                     }
-                }
 
-                // AI Matching Keywords
-                if (service.aiKeywords.isNotEmpty()) {
-                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Text(
-                            text = "AI MATCHING KEYWORDS",
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            letterSpacing = 0.5.sp
-                        )
+                    // AI Matching Keywords
+                    if (service.aiKeywords.isNotEmpty()) {
+                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Text(
+                                text = "AI MATCHING KEYWORDS",
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                letterSpacing = 0.5.sp
+                            )
 
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(6.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            service.aiKeywords.forEach { kw ->
-                                Box(
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(12.dp))
-                                        .background(MaterialTheme.colorScheme.surfaceVariant)
-                                        .padding(horizontal = 10.dp, vertical = 5.dp)
-                                ) {
-                                    Text(
-                                        text = kw,
-                                        fontSize = 11.sp,
-                                        color = MaterialTheme.colorScheme.onSurface,
-                                        fontWeight = FontWeight.SemiBold
-                                    )
+                            @OptIn(ExperimentalLayoutApi::class)
+                            FlowRow(
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                verticalArrangement = Arrangement.spacedBy(6.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                service.aiKeywords.forEach { kw ->
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(12.dp))
+                                            .background(MaterialTheme.colorScheme.surfaceVariant)
+                                            .padding(horizontal = 10.dp, vertical = 5.dp)
+                                    ) {
+                                        Text(
+                                            text = kw,
+                                            fontSize = 11.sp,
+                                            color = MaterialTheme.colorScheme.onSurface,
+                                            fontWeight = FontWeight.SemiBold
+                                        )
+                                    }
                                 }
                             }
                         }
                     }
-                }
 
-                // Action Buttons
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
+                    // Action Button
                     OutlinedButton(
-                        onClick = {},
-                        modifier = Modifier.weight(1f),
+                        onClick = { isEditing = true },
+                        modifier = Modifier.fillMaxWidth(),
                         border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
                         shape = RoundedCornerShape(10.dp)
                     ) {
                         Text("Edit Details", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface)
-                    }
-
-                    Button(
-                        onClick = {},
-                        modifier = Modifier.weight(1f),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.primary,
-                            contentColor = MaterialTheme.colorScheme.onPrimary
-                        ),
-                        shape = RoundedCornerShape(10.dp)
-                    ) {
-                        Text("Update Rates", fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                    }
-
-                    IconButton(onClick = onDelete) {
-                        Icon(
-                            imageVector = Icons.Default.Delete,
-                            contentDescription = "Delete Service",
-                            tint = MaterialTheme.colorScheme.error
-                        )
                     }
                 }
             }

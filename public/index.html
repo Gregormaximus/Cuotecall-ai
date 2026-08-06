@@ -9,8 +9,10 @@
   
   <script>
     if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js').catch(err => console.log('SW registration skipped:', err));
+      navigator.serviceWorker.getRegistrations().then(registrations => {
+        for (let registration of registrations) {
+          registration.unregister();
+        }
       });
     }
   </script>
@@ -104,6 +106,7 @@
       const [isLiveConnected, setIsLiveConnected] = useState(false);
       const [voiceStatus, setVoiceStatus] = useState("Disconnected");
       const [aiResponseText, setAiResponseText] = useState("");
+      const [transcript, setTranscript] = useState([]); // Add transcript state
       const [depositLink, setDepositLink] = useState(null);
       const [isProcessingStripe, setIsProcessingStripe] = useState(false);
       const [notFound, setNotFound] = useState(false);
@@ -162,6 +165,13 @@
 
       // Extract slug from URL: /site/[slug], /[slug], or ?slug=[slug]
       useEffect(() => {
+        let isMounted = true;
+        const loadTimer = setTimeout(() => {
+          if (isMounted) {
+            setLoading(false);
+          }
+        }, 1200);
+
         const searchParams = new URLSearchParams(window.location.search);
         let slug = searchParams.get("slug");
 
@@ -180,16 +190,24 @@
           slug = "apex-electric-pros";
         }
 
+        const formatTitleFromSlug = (s) => {
+          return s.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+        };
+
+        const formattedName = formatTitleFromSlug(slug);
+
         // Fetch Config from Firestore collection 'microsites/{slug}'
         db.collection("microsites").doc(slug).get()
           .then((doc) => {
+            if (!isMounted) return;
+            clearTimeout(loadTimer);
             if (doc.exists) {
               const data = doc.data();
               setConfig({
                 slug: slug,
-                companyName: data.businessName || data.companyName || DEFAULT_CONFIG.companyName,
-                siteTitle: data.businessName || data.siteTitle || DEFAULT_CONFIG.siteTitle,
-                siteSubtitle: data.headline || data.siteSubtitle || DEFAULT_CONFIG.siteSubtitle,
+                companyName: data.businessName || data.companyName || formattedName,
+                siteTitle: data.businessName || data.siteTitle || formattedName,
+                siteSubtitle: data.headline || data.siteSubtitle || "24/7 Professional On-Demand Dispatch",
                 themeColorHex: data.themeColors || data.themeColorHex || DEFAULT_CONFIG.themeColorHex,
                 voiceCallButtonText: data.voiceCallButtonText || DEFAULT_CONFIG.voiceCallButtonText,
                 voiceCallDescription: data.voiceCallDescription || DEFAULT_CONFIG.voiceCallDescription,
@@ -201,17 +219,17 @@
                 systemInstruction: data.systemInstruction || DEFAULT_CONFIG.systemInstruction
               });
               setNotFound(false);
-              setLoading(false);
             } else {
-              // Fallback to 'sites/{slug}'
-              return db.collection("sites").doc(slug).get().then((siteDoc) => {
+              // Fallback to 'sites/{slug}' or format brand title from slug
+              db.collection("sites").doc(slug).get().then((siteDoc) => {
+                if (!isMounted) return;
                 if (siteDoc.exists) {
                   const data = siteDoc.data();
                   setConfig({
                     slug: slug,
-                    companyName: data.businessName || data.companyName || DEFAULT_CONFIG.companyName,
-                    siteTitle: data.businessName || data.siteTitle || DEFAULT_CONFIG.siteTitle,
-                    siteSubtitle: data.headline || data.siteSubtitle || DEFAULT_CONFIG.siteSubtitle,
+                    companyName: data.businessName || data.companyName || formattedName,
+                    siteTitle: data.businessName || data.siteTitle || formattedName,
+                    siteSubtitle: data.headline || data.siteSubtitle || "24/7 Professional On-Demand Dispatch",
                     themeColorHex: data.themeColors || data.themeColorHex || DEFAULT_CONFIG.themeColorHex,
                     voiceCallButtonText: data.voiceCallButtonText || DEFAULT_CONFIG.voiceCallButtonText,
                     voiceCallDescription: data.voiceCallDescription || DEFAULT_CONFIG.voiceCallDescription,
@@ -224,17 +242,47 @@
                   });
                   setNotFound(false);
                 } else {
-                  setNotFound(true);
+                  setConfig({
+                    ...DEFAULT_CONFIG,
+                    slug: slug,
+                    companyName: formattedName,
+                    siteTitle: formattedName
+                  });
+                  setNotFound(false);
                 }
+                setLoading(false);
+              }).catch(() => {
+                if (!isMounted) return;
+                setConfig({
+                  ...DEFAULT_CONFIG,
+                  slug: slug,
+                  companyName: formattedName,
+                  siteTitle: formattedName
+                });
+                setNotFound(false);
                 setLoading(false);
               });
             }
+            setLoading(false);
           })
           .catch((err) => {
             console.warn("Firestore fetch error:", err);
+            if (!isMounted) return;
+            clearTimeout(loadTimer);
+            setConfig({
+              ...DEFAULT_CONFIG,
+              slug: slug,
+              companyName: formattedName,
+              siteTitle: formattedName
+            });
             setNotFound(false);
             setLoading(false);
           });
+
+        return () => {
+          isMounted = false;
+          clearTimeout(loadTimer);
+        };
       }, []);
 
       // Handle Image Selection
@@ -329,14 +377,20 @@
           setVoiceStatus("Connected - Listening...");
           setAiResponseText(`"Hello! This is ${config.companyName} AI Dispatcher. Speak directly to describe your breakdown or service need, and I will arrange service and send a deposit checkout link."`);
 
+          // Simulate transcript
+          const transcriptSim = setInterval(() => {
+            setTranscript(prev => [...prev, `[User] ${["Need help with", "Battery is dead", "Can you tow", "Emergency help"][Math.floor(Math.random() * 4)]} ...`]);
+          }, 2000);
+
           // Simulate function calling callback after 4 seconds of voice conversation
           setTimeout(() => {
+            clearInterval(transcriptSim);
             triggerStripeDepositFunctionCalling({
               serviceType: config.industry,
               depositAmount: config.quickDepositFee,
               notes: issueText || "Emergency Dispatch Requested via AI Voice"
             });
-          }, 4000);
+          }, 8000);
 
         } catch (err) {
           console.error("Microphone/Gemini Live Error:", err);
@@ -621,6 +675,15 @@
                     {aiResponseText}
                   </p>
                 )}
+                {/* Transcript Box */}
+                <div class="mt-2 text-xs text-slate-300 bg-slate-950/60 p-3 rounded-xl border border-slate-800 max-h-32 overflow-y-auto">
+                  <p class="font-bold text-slate-500 mb-1">Live Transcript:</p>
+                  {transcript.length === 0 ? (
+                    <span class="italic text-slate-600">Waiting for audio...</span>
+                  ) : (
+                    transcript.map((line, i) => <p key={i}>{line}</p>)
+                  )}
+                </div>
               </div>
             )}
           </div>
