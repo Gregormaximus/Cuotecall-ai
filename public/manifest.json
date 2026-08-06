@@ -1,0 +1,9 @@
+{
+  "short_name": "CallCatch AI",
+  "name": "CallCatch AI Field Service Dispatch",
+  "icons": [],
+  "start_url": "/",
+  "background_color": "#0f172a",
+  "theme_color": "#06b6d4",
+  "display": "standalone"
+}

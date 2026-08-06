@@ -5,6 +5,16 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>QuoteCall AI - Instant Service Dispatch & Micro-site Engine</title>
   
+  <link rel="manifest" href="/manifest.json" />
+  
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js').catch(err => console.log('SW registration skipped:', err));
+      });
+    }
+  </script>
+
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
 
@@ -97,14 +107,58 @@
       const [depositLink, setDepositLink] = useState(null);
       const [isProcessingStripe, setIsProcessingStripe] = useState(false);
       const [notFound, setNotFound] = useState(false);
+      const [callDuration, setCallDuration] = useState(0);
 
       // GPS Location Dispatch State
       const [gpsLocation, setGpsLocation] = useState(null);
       const [isGettingGps, setIsGettingGps] = useState(false);
       const [gpsStatusMessage, setGpsStatusMessage] = useState("");
+      const [copiedGpsLink, setCopiedGpsLink] = useState(false);
+
+      // Active Call Duration Timer (MM:SS)
+      useEffect(() => {
+        let timer = null;
+        if (isLiveConnected) {
+          setCallDuration(0);
+          timer = setInterval(() => {
+            setCallDuration((prev) => prev + 1);
+          }, 1000);
+        } else {
+          setCallDuration(0);
+        }
+        return () => {
+          if (timer) clearInterval(timer);
+        };
+      }, [isLiveConnected]);
+
+      const formatCallDuration = (seconds) => {
+        const mins = Math.floor(seconds / 60);
+        const secs = seconds % 60;
+        return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+      };
+
+      const handleCopyGpsLink = () => {
+        if (gpsLocation && gpsLocation.mapsUrl) {
+          navigator.clipboard.writeText(gpsLocation.mapsUrl);
+          setCopiedGpsLink(true);
+          setTimeout(() => setCopiedGpsLink(false), 2000);
+        }
+      };
+
+      // Dispatch Timeline & SMS State
+      const [dispatchStage, setDispatchStage] = useState(0); // 0: Requested, 1: Driver Assigned, 2: En Route, 3: Arrived
+      const [smsNotification, setSmsNotification] = useState(null);
 
       const wsRef = useRef(null);
       const audioContextRef = useRef(null);
+      const mediaStreamRef = useRef(null);
+
+      // Refresh Lucide Icons whenever component updates
+      useEffect(() => {
+        if (window.lucide) {
+          window.lucide.createIcons();
+        }
+      });
 
       // Extract slug from URL: /site/[slug], /[slug], or ?slug=[slug]
       useEffect(() => {
@@ -185,7 +239,7 @@
 
       // Handle Image Selection
       const handleImageUpload = (e) => {
-        const file = e.target.files[0];
+        const file = e.target.files && e.target.files[0];
         if (file) {
           setSelectedPhoto(file);
           const reader = new FileReader();
@@ -196,33 +250,86 @@
         }
       };
 
-      // Initiate Gemini Live WebSocket Audio Session
+      const removePhoto = () => {
+        setSelectedPhoto(null);
+        setPhotoPreview(null);
+      };
+
+      // Handle Live GPS Location Fetching
+      const requestGpsLocation = () => {
+        if (!navigator.geolocation) {
+          setGpsStatusMessage("Geolocation is not supported by your browser.");
+          return;
+        }
+        setIsGettingGps(true);
+        setGpsStatusMessage("Fetching precise GPS coordinates...");
+
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            const lat = position.coords.latitude.toFixed(6);
+            const lng = position.coords.longitude.toFixed(6);
+            const mapsUrl = `https://maps.google.com/?q=${lat},${lng}`;
+            setGpsLocation({
+              latitude: lat,
+              longitude: lng,
+              accuracy: position.coords.accuracy.toFixed(1),
+              mapsUrl: mapsUrl
+            });
+            setIsGettingGps(false);
+            setGpsStatusMessage("GPS Location Acquired!");
+          },
+          (error) => {
+            console.warn("Geolocation error:", error);
+            setIsGettingGps(false);
+            switch(error.code) {
+              case error.PERMISSION_DENIED:
+                setGpsStatusMessage("Location permission denied. Please allow location access.");
+                break;
+              case error.POSITION_UNAVAILABLE:
+                setGpsStatusMessage("Location position unavailable.");
+                break;
+              case error.TIMEOUT:
+                setGpsStatusMessage("Location request timed out.");
+                break;
+              default:
+                setGpsStatusMessage("Failed to fetch location.");
+            }
+          },
+          { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 }
+        );
+      };
+
+      // Initiate Gemini Live Audio Session with real microphone permission
       const toggleGeminiLiveCall = async () => {
         if (isLiveConnected) {
-          // Disconnect
+          // Disconnect & release microphone
           if (wsRef.current) wsRef.current.close();
+          if (mediaStreamRef.current) {
+            mediaStreamRef.current.getTracks().forEach(track => track.stop());
+            mediaStreamRef.current = null;
+          }
           setIsLiveConnected(false);
           setVoiceStatus("Call Ended");
           return;
         }
 
         try {
-          setVoiceStatus("Connecting to Gemini Live API...");
+          setVoiceStatus("Requesting Microphone Access...");
+          if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            mediaStreamRef.current = stream;
+          }
+
+          setVoiceStatus("Microphone Active - Connecting to AI Voice...");
           setIsLiveConnected(true);
 
-          // Simulated WebSocket connection endpoint for Gemini 2.0 Live API
-          const apiKey = "AIzaSy_PUBLIC_KEY";
-          const host = "generativelanguage.googleapis.com";
-          const wsUrl = `wss://${host}/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent?key=${apiKey}`;
-
-          // Create AudioContext for input & output
+          // AudioContext setup
           audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
 
-          // Mocking WebSocket handshake for demo preview safety
           setVoiceStatus("Connected - Listening...");
-          setAiResponseText(`"Hello! This is ${config.companyName} AI Dispatcher. Describe your emergency or issue, and I'll arrange service and generate a deposit link for you."`);
+          setAiResponseText(`"Hello! This is ${config.companyName} AI Dispatcher. Speak directly to describe your breakdown or service need, and I will arrange service and send a deposit checkout link."`);
 
-          // Simulate function calling after 5 seconds of voice conversation
+          // Simulate function calling callback after 4 seconds of voice conversation
           setTimeout(() => {
             triggerStripeDepositFunctionCalling({
               serviceType: config.industry,
@@ -232,8 +339,14 @@
           }, 4000);
 
         } catch (err) {
-          console.error("Gemini Live Error:", err);
-          setVoiceStatus("Connection Error");
+          console.error("Microphone/Gemini Live Error:", err);
+          let errMsg = "Connection Error";
+          if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
+            errMsg = "Microphone Permission Denied by User";
+          } else if (err.message) {
+            errMsg = err.message;
+          }
+          setVoiceStatus(errMsg);
           setIsLiveConnected(false);
         }
       };
@@ -245,15 +358,34 @@
           const generatedCheckoutUrl = `https://checkout.stripe.com/c/pay/cs_test_quotecall_${Date.now()}?amount=${params.depositAmount || config.quickDepositFee}`;
           setDepositLink(generatedCheckoutUrl);
           setIsProcessingStripe(false);
-          setAiResponseText(`"I have set up your dispatch record! Click the Quick Deposit button below to confirm your $${params.depositAmount || config.quickDepositFee} security deposit and send a provider instantly."`);
+          setDispatchStage(1); // Stage 1: Driver Assigned
+          setAiResponseText(`"I have set up your dispatch record! Click the Quick Deposit button below to confirm your $${params.depositAmount || config.quickDepositFee} security deposit and dispatch a technician instantly."`);
         }, 1200);
       };
 
-      // Direct Deposit Button Action
+      // Direct Deposit Button Action & SMS Notification Trigger
       const handleDirectDeposit = () => {
         setIsProcessingStripe(true);
         setTimeout(() => {
           const generatedCheckoutUrl = `https://checkout.stripe.com/c/pay/cs_test_quotecall_${Date.now()}?amount=${config.quickDepositFee}`;
+          setDepositLink(generatedCheckoutUrl);
+          setDispatchStage(2); // Stage 2: En Route
+
+          // Trigger SMS Confirmation Payload
+          const trackingId = `TRK-${Math.floor(1000 + Math.random() * 9000)}`;
+          const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+          setSmsNotification({
+            phone: config.providerPhoneNumber || "+1 (800) 555-0199",
+            trackingId: trackingId,
+            message: `CONFIRMED: $${config.quickDepositFee.toFixed(2)} deposit received for ${config.companyName}. Dispatch Unit #402 en route to your location! Track live: https://quotecall.ai/track/${trackingId}`,
+            timestamp: timeStr
+          });
+
+          // Simulate arrival stage after 10s
+          setTimeout(() => {
+            setDispatchStage(3); // Stage 3: Arrived
+          }, 10000);
+
           window.open(generatedCheckoutUrl, '_blank');
           setIsProcessingStripe(false);
         }, 800);
@@ -317,6 +449,127 @@
             </div>
           </div>
 
+          {/* Section: Uber-style Visual Progress Timeline */}
+          <div class="bg-slate-900 border border-slate-800 rounded-3xl p-5 shadow-xl space-y-4">
+            <div class="flex items-center justify-between">
+              <h3 class="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-2">
+                <i data-lucide="activity" class="w-4 h-4 text-cyan-400"></i>
+                Dispatch Tracking Status
+              </h3>
+              <span class={`text-[10px] font-black uppercase px-2.5 py-1 rounded-full border ${
+                dispatchStage === 3 ? 'bg-emerald-950 text-emerald-400 border-emerald-800' :
+                dispatchStage === 2 ? 'bg-cyan-950 text-cyan-400 border-cyan-800 animate-pulse' :
+                dispatchStage === 1 ? 'bg-amber-950 text-amber-400 border-amber-800' :
+                'bg-slate-800 text-slate-400 border-slate-700'
+              }`}>
+                {dispatchStage === 3 ? 'Arrived' : dispatchStage === 2 ? 'En Route' : dispatchStage === 1 ? 'Driver Assigned' : 'Requested'}
+              </span>
+            </div>
+
+            {/* Horizontal 4-Stage Stepper */}
+            <div class="relative pt-2 pb-1">
+              {/* Connector Bar Background */}
+              <div class="absolute top-6 left-6 right-6 h-1 bg-slate-800 rounded-full z-0"></div>
+              {/* Filled Active Connector Bar */}
+              <div
+                class="absolute top-6 left-6 h-1 bg-gradient-to-r from-cyan-500 to-emerald-400 rounded-full transition-all duration-500 z-0"
+                style={{ width: `${(dispatchStage / 3) * 88}%` }}
+              ></div>
+
+              <div class="relative z-10 grid grid-cols-4 gap-1 text-center">
+                {/* Stage 0: Requested */}
+                <button
+                  onClick={() => setDispatchStage(0)}
+                  class="flex flex-col items-center gap-1.5 focus:outline-none group"
+                >
+                  <div class={`w-9 h-9 rounded-full flex items-center justify-center transition-all ${
+                    dispatchStage >= 0
+                      ? 'bg-cyan-500 text-slate-950 font-bold shadow-lg shadow-cyan-500/20'
+                      : 'bg-slate-800 text-slate-500 border border-slate-700'
+                  }`}>
+                    <i data-lucide="bell" class="w-4 h-4"></i>
+                  </div>
+                  <span class={`text-[10px] font-bold ${dispatchStage >= 0 ? 'text-cyan-400' : 'text-slate-500'}`}>Requested</span>
+                </button>
+
+                {/* Stage 1: Driver Assigned */}
+                <button
+                  onClick={() => setDispatchStage(1)}
+                  class="flex flex-col items-center gap-1.5 focus:outline-none group"
+                >
+                  <div class={`w-9 h-9 rounded-full flex items-center justify-center transition-all ${
+                    dispatchStage >= 1
+                      ? 'bg-cyan-500 text-slate-950 font-bold shadow-lg shadow-cyan-500/20'
+                      : 'bg-slate-800 text-slate-500 border border-slate-700'
+                  }`}>
+                    <i data-lucide="user-check" class="w-4 h-4"></i>
+                  </div>
+                  <span class={`text-[10px] font-bold ${dispatchStage >= 1 ? 'text-cyan-400' : 'text-slate-500'}`}>Assigned</span>
+                </button>
+
+                {/* Stage 2: En Route */}
+                <button
+                  onClick={() => setDispatchStage(2)}
+                  class="flex flex-col items-center gap-1.5 focus:outline-none group"
+                >
+                  <div class={`w-9 h-9 rounded-full flex items-center justify-center transition-all ${
+                    dispatchStage >= 2
+                      ? 'bg-cyan-500 text-slate-950 font-bold shadow-lg shadow-cyan-500/20 animate-bounce'
+                      : 'bg-slate-800 text-slate-500 border border-slate-700'
+                  }`}>
+                    <i data-lucide="navigation" class="w-4 h-4"></i>
+                  </div>
+                  <span class={`text-[10px] font-bold ${dispatchStage >= 2 ? 'text-cyan-400' : 'text-slate-500'}`}>En Route</span>
+                </button>
+
+                {/* Stage 3: Arrived */}
+                <button
+                  onClick={() => setDispatchStage(3)}
+                  class="flex flex-col items-center gap-1.5 focus:outline-none group"
+                >
+                  <div class={`w-9 h-9 rounded-full flex items-center justify-center transition-all ${
+                    dispatchStage >= 3
+                      ? 'bg-emerald-400 text-slate-950 font-bold shadow-lg shadow-emerald-400/30'
+                      : 'bg-slate-800 text-slate-500 border border-slate-700'
+                  }`}>
+                    <i data-lucide="check-circle-2" class="w-4 h-4"></i>
+                  </div>
+                  <span class={`text-[10px] font-bold ${dispatchStage >= 3 ? 'text-emerald-400' : 'text-slate-500'}`}>Arrived</span>
+                </button>
+              </div>
+            </div>
+
+            <div class="p-3 bg-slate-950 border border-slate-800 rounded-2xl text-xs text-slate-300 flex items-center gap-2">
+              <i data-lucide="info" class="w-4 h-4 text-cyan-400 flex-shrink-0"></i>
+              <span>
+                {dispatchStage === 0 && "Job requested — Start voice call or upload details to assign unit."}
+                {dispatchStage === 1 && `Technician assigned for ${config.companyName}. Confirm deposit to launch unit.`}
+                {dispatchStage === 2 && "Dispatch Unit #402 is en route to your location with GPS tracking."}
+                {dispatchStage === 3 && "Technician arrived on site! Service in progress."}
+              </span>
+            </div>
+          </div>
+
+          {/* SMS Confirmation Notification Alert */}
+          {smsNotification && (
+            <div class="bg-gradient-to-r from-emerald-950/90 to-slate-900 border border-emerald-500/50 rounded-3xl p-5 shadow-2xl text-left space-y-3">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2 text-xs font-bold text-emerald-400">
+                  <i data-lucide="message-square" class="w-4 h-4"></i>
+                  <span>SMS Dispatch Confirmation Sent</span>
+                </div>
+                <span class="text-[10px] font-mono text-slate-400">{smsNotification.timestamp}</span>
+              </div>
+              <div class="bg-slate-950/90 p-3.5 rounded-2xl border border-slate-800 text-xs font-mono text-emerald-300 leading-relaxed space-y-1">
+                <div class="text-[10px] text-slate-500 flex justify-between">
+                  <span>TO: {smsNotification.phone}</span>
+                  <span>ID: {smsNotification.trackingId}</span>
+                </div>
+                <p class="pt-1">{smsNotification.message}</p>
+              </div>
+            </div>
+          )}
+
           {/* Section 1: Instant AI Dispatch / Live Voice Button */}
           <div class="bg-gradient-to-br from-slate-900 to-slate-950 border border-slate-800 rounded-3xl p-6 shadow-xl text-center space-y-4">
             <div>
@@ -356,7 +609,12 @@
                     <span class="voice-wave"></span>
                     {voiceStatus}
                   </span>
-                  <span class="text-[10px] text-slate-500 uppercase">Gemini 2.0 Live API</span>
+                  <div class="flex items-center gap-2">
+                    <span class="font-mono text-cyan-300 bg-cyan-950/80 border border-cyan-800/60 px-2 py-0.5 rounded-lg text-xs font-bold">
+                      {formatCallDuration(callDuration)}
+                    </span>
+                    <span class="text-[10px] text-slate-500 uppercase">Gemini 2.0 Live API</span>
+                  </div>
                 </div>
                 {aiResponseText && (
                   <p class="text-xs text-slate-200 bg-slate-950/80 p-3 rounded-xl border border-slate-800 italic">
@@ -385,19 +643,113 @@
             <div class="flex items-center gap-4">
               <label class="flex-1 cursor-pointer flex items-center justify-center gap-2 p-3 bg-slate-950 border border-dashed border-slate-700 rounded-2xl text-xs text-slate-400 hover:border-cyan-400 hover:text-cyan-400 transition-all">
                 <i data-lucide="upload-cloud" class="w-4 h-4"></i>
-                <span>{selectedPhoto ? selectedPhoto.name : "Attach Photo of Damage"}</span>
+                <span class="truncate">{selectedPhoto ? selectedPhoto.name : "Attach Photo of Damage"}</span>
                 <input type="file" accept="image/*" onChange={handleImageUpload} class="hidden" />
               </label>
 
               {photoPreview && (
-                <div class="w-12 h-12 rounded-xl overflow-hidden border border-cyan-500/50 flex-shrink-0">
-                  <img src={photoPreview} alt="Preview" class="w-full h-full object-cover" />
+                <div class="flex items-center gap-2">
+                  <div class="w-12 h-12 rounded-xl overflow-hidden border border-cyan-500/50 flex-shrink-0 relative">
+                    <img src={photoPreview} alt="Preview" class="w-full h-full object-cover" />
+                  </div>
+                  <button
+                    onClick={removePhoto}
+                    title="Remove Photo"
+                    class="p-2 rounded-xl bg-slate-950 border border-red-500/40 text-red-400 hover:bg-red-950/40 transition-all text-xs"
+                  >
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                  </button>
                 </div>
               )}
             </div>
           </div>
 
-          {/* Section 3: Deposit Payment Section (Stripe Checkout) */}
+          {/* Section 3: Live GPS Location Sharing (Field Dispatch) */}
+          <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-4">
+            <div class="flex items-center justify-between">
+              <h3 class="text-sm font-bold text-slate-200 flex items-center gap-2">
+                <i data-lucide="map-pin" class="w-4 h-4 text-cyan-400"></i>
+                Live GPS Location Dispatch
+              </h3>
+              {gpsLocation && (
+                <span class="text-[10px] font-extrabold text-emerald-400 bg-emerald-950/60 border border-emerald-800/50 px-2.5 py-1 rounded-full flex items-center gap-1">
+                  <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                  GPS Acquired
+                </span>
+              )}
+            </div>
+
+            <p class="text-xs text-slate-400 leading-relaxed">
+              Share your precise breakdown or job coordinates so the responding technician or driver can navigate directly to your location.
+            </p>
+
+            <button
+              onClick={requestGpsLocation}
+              disabled={isGettingGps}
+              class="w-full py-3 px-4 rounded-2xl bg-slate-950 border border-slate-700 hover:border-cyan-400 text-cyan-400 hover:text-white font-bold text-xs flex items-center justify-center gap-2 transition-all active:scale-95 disabled:opacity-50"
+            >
+              {isGettingGps ? (
+                <>
+                  <div class="w-4 h-4 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin"></div>
+                  <span>Acquiring GPS Signal...</span>
+                </>
+              ) : (
+                <>
+                  <i data-lucide="crosshair" class="w-4 h-4"></i>
+                  <span>{gpsLocation ? "Update Live GPS Location" : "Share My Live Location"}</span>
+                </>
+              )}
+            </button>
+
+            {gpsStatusMessage && (
+              <p class={`text-xs p-2.5 rounded-xl text-center font-medium ${gpsLocation ? 'bg-emerald-950/30 text-emerald-400 border border-emerald-800/40' : 'bg-amber-950/30 text-amber-400 border border-amber-800/40'}`}>
+                {gpsStatusMessage}
+              </p>
+            )}
+
+            {gpsLocation && (
+              <div class="p-4 rounded-2xl bg-slate-950 border border-cyan-500/40 space-y-3">
+                <div class="grid grid-cols-2 gap-2 text-xs">
+                  <div class="bg-slate-900 p-2.5 rounded-xl border border-slate-800">
+                    <span class="text-[10px] text-slate-500 uppercase font-semibold block">Latitude</span>
+                    <span class="font-mono text-cyan-400 font-bold">{gpsLocation.latitude}</span>
+                  </div>
+                  <div class="bg-slate-900 p-2.5 rounded-xl border border-slate-800">
+                    <span class="text-[10px] text-slate-500 uppercase font-semibold block">Longitude</span>
+                    <span class="font-mono text-cyan-400 font-bold">{gpsLocation.longitude}</span>
+                  </div>
+                </div>
+
+                <div class="flex items-center justify-between text-xs text-slate-400 pt-1 flex-wrap gap-2">
+                  <span>Accuracy: ~{gpsLocation.accuracy}m</span>
+                  <div class="flex items-center gap-2">
+                    <button
+                      onClick={handleCopyGpsLink}
+                      class={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border font-bold text-xs transition-all ${
+                        copiedGpsLink
+                          ? 'bg-emerald-950/80 border-emerald-500 text-emerald-400'
+                          : 'bg-slate-900 border-slate-700 text-slate-300 hover:border-cyan-400 hover:text-cyan-400'
+                      }`}
+                    >
+                      <i data-lucide={copiedGpsLink ? "check" : "copy"} class="w-3.5 h-3.5"></i>
+                      <span>{copiedGpsLink ? "Copied!" : "Copy Link"}</span>
+                    </button>
+                    <a
+                      href={gpsLocation.mapsUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-cyan-500 text-slate-950 font-black text-xs hover:bg-cyan-400 transition-all shadow"
+                    >
+                      <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
+                      <span>Open Google Maps Pin</span>
+                    </a>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Section 4: Deposit Payment Section (Stripe Checkout) */}
           <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl text-center space-y-4">
             <div class="flex items-center justify-between">
               <div class="text-left">
