@@ -17,8 +17,8 @@ android {
     applicationId = "com.aistudio.fastingo.agent"
     minSdk = 24
     targetSdk = 36
-    versionCode = 18
-    versionName = "0.0.0.18"
+    versionCode = 19
+    versionName = "19.0"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }

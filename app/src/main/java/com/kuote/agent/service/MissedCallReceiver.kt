@@ -3,7 +3,10 @@ package com.kuote.agent.service
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.provider.CallLog
 import android.telephony.TelephonyManager
+import androidx.core.content.ContextCompat
 import com.kuote.agent.ai.MultimodalIntakeEngine
 import com.kuote.agent.data.repository.KuoteRepository
 import kotlinx.coroutines.CoroutineScope
@@ -38,18 +41,52 @@ class MissedCallReceiver : BroadcastReceiver() {
                     android.util.Log.d("MissedCallReceiver", "IDLE: isIncomingRinging: $isIncomingRinging, lastIncomingNumber: $lastIncomingNumber")
                     if (isIncomingRinging) {
                         isIncomingRinging = false
-                        val missedNumber = when {
+                        var missedNumber = when {
                             lastIncomingNumber.isNotBlank() -> lastIncomingNumber
                             incomingNumber.isNotBlank() -> incomingNumber
-                            else -> "+1 (555) 012-3456"
+                            else -> ""
                         }
-                        android.util.Log.d("MissedCallReceiver", "Processing missed call for: $missedNumber")
+                        if (missedNumber.isBlank()) {
+                            missedNumber = fetchLastCallLogNumber(context)
+                        }
+
+                        if (missedNumber.isBlank()) {
+                            android.util.Log.w("MissedCallReceiver", "Could not retrieve caller phone number. Skipping auto-reply.")
+                            return
+                        }
+
+                        android.util.Log.d("MissedCallReceiver", "Processing missed call for real caller: $missedNumber")
                         processMissedCall(context, missedNumber)
                     }
                 }
             }
             lastState = stateStr ?: TelephonyManager.EXTRA_STATE_IDLE
         }
+    }
+
+    private fun fetchLastCallLogNumber(context: Context): String {
+        if (ContextCompat.checkSelfPermission(context, android.Manifest.permission.READ_CALL_LOG) == PackageManager.PERMISSION_GRANTED) {
+            try {
+                val cursor = context.contentResolver.query(
+                    CallLog.Calls.CONTENT_URI,
+                    arrayOf(CallLog.Calls.NUMBER),
+                    null, null,
+                    "${CallLog.Calls.DATE} DESC"
+                )
+                cursor?.use {
+                    if (it.moveToFirst()) {
+                        val numberIndex = it.getColumnIndex(CallLog.Calls.NUMBER)
+                        if (numberIndex >= 0) {
+                            val num = it.getString(numberIndex)
+                            if (!num.isNullOrBlank()) return num
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("MissedCallReceiver", "Failed to query CallLog", e)
+            }
+        }
+        return ""
     }
 
     private fun processMissedCall(context: Context, phoneNumber: String) {
