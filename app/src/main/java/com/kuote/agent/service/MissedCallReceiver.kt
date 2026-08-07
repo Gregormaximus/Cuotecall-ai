@@ -106,10 +106,7 @@ class MissedCallReceiver : BroadcastReceiver() {
 
             android.util.Log.d("MissedCallReceiver", "Sending instant auto-SMS to $cleanNumber")
 
-            // 1. Send Instant Auto-SMS
-            notifHelper.sendInstantSms(cleanNumber, smsMessage)
-
-            // 2. Generate AI Quote for missed call
+            // 1. Generate AI Quote for missed call
             val quote = intakeEngine.analyzeCustomerRequest(
                 customerPhone = cleanNumber,
                 location = "Redwood City",
@@ -118,7 +115,15 @@ class MissedCallReceiver : BroadcastReceiver() {
                 services = services
             )
 
-            // 3. Save Quote to Room / Firestore & Trigger Notification
+            // 2. Send Instant Auto-SMS linked to quote ID
+            notifHelper.sendInstantSms(
+                phoneNumber = cleanNumber,
+                messageText = smsMessage,
+                triggerType = "MISSED_CALL_AUTO",
+                relatedQuoteId = quote.id
+            )
+
+            // 3. Save Quote to Room & Trigger Notification
             repository.saveQuote(quote)
             notifHelper.showQuoteNotification(quote, company.name)
         }

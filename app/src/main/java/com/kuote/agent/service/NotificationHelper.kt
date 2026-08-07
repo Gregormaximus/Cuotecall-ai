@@ -12,6 +12,9 @@ import androidx.core.app.NotificationCompat
 import com.kuote.agent.MainActivity
 import com.kuote.agent.R
 import com.kuote.agent.data.model.Quote
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 class NotificationHelper(private val context: Context) {
 
@@ -64,11 +67,31 @@ class NotificationHelper(private val context: Context) {
         manager.notify(quote.id.hashCode(), builder.build())
     }
 
-    fun sendInstantSms(phoneNumber: String, messageText: String) {
+    fun sendInstantSms(
+        phoneNumber: String,
+        messageText: String,
+        triggerType: String = "MISSED_CALL_AUTO",
+        relatedQuoteId: String? = null
+    ) {
+        val repository = com.kuote.agent.data.repository.KuoteRepository(context)
         val cleanNumber = phoneNumber.replace(Regex("[^0-9+]"), "")
+        
         if (cleanNumber.length < 6 || cleanNumber.startsWith("+1555")) {
             android.util.Log.w("NotificationHelper", "Invalid or dummy phone number '$cleanNumber'. Skipping real SMS delivery.")
             showToast("SMS skipped (invalid phone number)")
+            
+            // Save SKIPPED log
+            val skippedLog = com.kuote.agent.data.model.SmsLog(
+                recipientPhone = if (cleanNumber.isNotBlank()) cleanNumber else phoneNumber,
+                messageText = messageText,
+                status = "SKIPPED",
+                triggerType = triggerType,
+                relatedQuoteId = relatedQuoteId,
+                errorDetails = "Skipped: Invalid or placeholder phone number"
+            )
+            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                repository.saveSmsLog(skippedLog)
+            }
             return
         }
 
@@ -88,9 +111,35 @@ class NotificationHelper(private val context: Context) {
             }
             android.util.Log.d("NotificationHelper", "SMS sent successfully to $cleanNumber")
             showToast("Instant SMS sent to $cleanNumber")
+
+            // Save DELIVERED log
+            val deliveredLog = com.kuote.agent.data.model.SmsLog(
+                recipientPhone = cleanNumber,
+                messageText = messageText,
+                status = "DELIVERED",
+                triggerType = triggerType,
+                relatedQuoteId = relatedQuoteId,
+                errorDetails = null
+            )
+            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                repository.saveSmsLog(deliveredLog)
+            }
         } catch (e: Exception) {
             android.util.Log.e("NotificationHelper", "Failed sending real SMS to $cleanNumber", e)
             showToast("SMS send error: ${e.localizedMessage}")
+
+            // Save FAILED log
+            val failedLog = com.kuote.agent.data.model.SmsLog(
+                recipientPhone = cleanNumber,
+                messageText = messageText,
+                status = "FAILED",
+                triggerType = triggerType,
+                relatedQuoteId = relatedQuoteId,
+                errorDetails = e.localizedMessage ?: e.message ?: "Unknown SMS dispatch error"
+            )
+            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                repository.saveSmsLog(failedLog)
+            }
         }
     }
 

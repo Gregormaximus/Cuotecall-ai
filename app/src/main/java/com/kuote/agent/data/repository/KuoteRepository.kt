@@ -8,6 +8,7 @@ import com.kuote.agent.data.model.FieldService
 import com.kuote.agent.data.model.Job
 import com.kuote.agent.data.model.JobStatus
 import com.kuote.agent.data.model.Quote
+import com.kuote.agent.data.model.SmsLog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.withContext
@@ -20,12 +21,14 @@ class KuoteRepository(context: Context) {
     private val quoteDao = db.quoteDao()
     private val webConfigDao = db.webConfigDao()
     private val jobDao = db.jobDao()
+    private val smsLogDao = db.smsLogDao()
 
     val companyProfileFlow: Flow<CompanyProfile?> = profileDao.getCompanyProfileFlow()
     val servicesFlow: Flow<List<FieldService>> = serviceDao.getAllServicesFlow()
     val quotesFlow: Flow<List<Quote>> = quoteDao.getAllQuotesFlow()
     val webConfigFlow: Flow<CompanyWebConfig?> = webConfigDao.getWebConfigFlow()
     val jobsFlow: Flow<List<Job>> = jobDao.getAllJobsFlow()
+    val smsLogsFlow: Flow<List<SmsLog>> = smsLogDao.getAllSmsLogsFlow()
 
     suspend fun initializeDefaultDataIfEmpty() = withContext(Dispatchers.IO) {
         if (profileDao.getCompanyProfile() == null) {
@@ -110,6 +113,32 @@ class KuoteRepository(context: Context) {
                 jobDao.insertOrUpdateJob(job)
             }
         }
+
+        // Default initial SMS logs
+        val sampleSmsLogs = listOf(
+            SmsLog(
+                id = "sms_sample_1",
+                recipientPhone = "+1 (555) 382-9102",
+                messageText = "Sorry we missed your call! I'm currently on a job. Reply with your service need or tap: https://ais-dev-evjq6zhfgibldhq4rn7mw2-55455507008.us-west2.run.app/?slug=apex-electric-pros",
+                timestampMillis = System.currentTimeMillis() - 15 * 60 * 1000,
+                status = "DELIVERED",
+                triggerType = "MISSED_CALL_AUTO",
+                relatedQuoteId = "q_initial_1"
+            ),
+            SmsLog(
+                id = "sms_sample_2",
+                recipientPhone = "+1 (630) 448-0230",
+                messageText = "[CallCatch Diagnostic] Gateway Connectivity Verified. System ready for instant auto-replies.",
+                timestampMillis = System.currentTimeMillis() - 60 * 60 * 1000,
+                status = "DELIVERED",
+                triggerType = "TEST_SMS"
+            )
+        )
+        for (log in sampleSmsLogs) {
+            if (smsLogDao.getSmsLogById(log.id) == null) {
+                smsLogDao.insertSmsLog(log)
+            }
+        }
     }
 
     suspend fun saveCompanyProfile(profile: CompanyProfile) = withContext(Dispatchers.IO) {
@@ -165,6 +194,20 @@ class KuoteRepository(context: Context) {
     suspend fun getServicesDirect(): List<FieldService> {
         return withContext(Dispatchers.IO) {
             serviceDao.getAllServices()
+        }
+    }
+
+    suspend fun saveSmsLog(smsLog: SmsLog) = withContext(Dispatchers.IO) {
+        smsLogDao.insertSmsLog(smsLog)
+    }
+
+    suspend fun clearSmsLogs() = withContext(Dispatchers.IO) {
+        smsLogDao.clearAllSmsLogs()
+    }
+
+    suspend fun getSmsLogByQuoteId(quoteId: String): SmsLog? {
+        return withContext(Dispatchers.IO) {
+            smsLogDao.getSmsLogByQuoteId(quoteId)
         }
     }
 }

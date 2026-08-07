@@ -10,6 +10,7 @@ import com.kuote.agent.data.model.CompanyWebConfig
 import com.kuote.agent.data.model.FieldService
 import com.kuote.agent.data.model.Job
 import com.kuote.agent.data.model.Quote
+import com.kuote.agent.data.model.SmsLog
 
 @Database(
     entities = [
@@ -17,9 +18,10 @@ import com.kuote.agent.data.model.Quote
         FieldService::class,
         Quote::class,
         CompanyWebConfig::class,
-        Job::class
+        Job::class,
+        SmsLog::class
     ],
-    version = 5,
+    version = 6,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -30,6 +32,7 @@ abstract class KuoteDatabase : RoomDatabase() {
     abstract fun quoteDao(): QuoteDao
     abstract fun webConfigDao(): WebConfigDao
     abstract fun jobDao(): JobDao
+    abstract fun smsLogDao(): SmsLogDao
 
     companion object {
         @Volatile

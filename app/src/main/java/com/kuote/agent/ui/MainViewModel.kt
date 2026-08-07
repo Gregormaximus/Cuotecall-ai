@@ -11,6 +11,7 @@ import com.kuote.agent.data.model.FieldService
 import com.kuote.agent.data.model.Job
 import com.kuote.agent.data.model.JobStatus
 import com.kuote.agent.data.model.Quote
+import com.kuote.agent.data.model.SmsLog
 import com.kuote.agent.data.model.AnalyticsStats
 import com.kuote.agent.data.model.ConversationLog
 import com.kuote.agent.data.model.DispatchGpsData
@@ -33,6 +34,11 @@ data class MainUiState(
     val services: List<FieldService> = emptyList(),
     val quotes: List<Quote> = emptyList(),
     val jobs: List<Job> = emptyList(),
+    val smsLogs: List<SmsLog> = emptyList(),
+    val isSmsLogScreenOpen: Boolean = false,
+    val testSmsPhoneInput: String = "+16304480230",
+    val isSendingTestSms: Boolean = false,
+    val testSmsResultStatus: String? = null,
     val analyticsStats: AnalyticsStats = AnalyticsStats(),
     val recentConversations: List<ConversationLog> = emptyList(),
     val dispatches: List<DispatchGpsData> = emptyList(),
@@ -123,6 +129,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 if (config != null) {
                     _uiState.update { it.copy(webConfig = config) }
                 }
+            }
+        }
+
+        viewModelScope.launch {
+            repository.smsLogsFlow.collect { logs ->
+                _uiState.update { it.copy(smsLogs = logs) }
             }
         }
 
@@ -656,5 +668,50 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun signOut() {
         authRepository.signOut()
         _uiState.update { it.copy(toastMessage = "Signed out of Firebase Auth") }
+    }
+
+    fun updateTestSmsPhoneInput(phone: String) {
+        _uiState.update { it.copy(testSmsPhoneInput = phone) }
+    }
+
+    fun toggleSmsLogScreen(open: Boolean) {
+        _uiState.update { it.copy(isSmsLogScreenOpen = open) }
+    }
+
+    fun sendTestSms(customMessage: String? = null) {
+        val phone = uiState.value.testSmsPhoneInput
+        if (phone.isBlank()) {
+            _uiState.update { it.copy(toastMessage = "Please enter a valid target phone number for test SMS") }
+            return
+        }
+
+        _uiState.update { it.copy(isSendingTestSms = true, testSmsResultStatus = null) }
+
+        viewModelScope.launch {
+            val companyName = uiState.value.companyProfile.name
+            val msgText = customMessage ?: "[CallCatch AI Diagnostic] Gateway Test SMS sent from $companyName. Connectivity OK!"
+            
+            notificationHelper.sendInstantSms(
+                phoneNumber = phone,
+                messageText = msgText,
+                triggerType = "TEST_SMS",
+                relatedQuoteId = null
+            )
+
+            _uiState.update { 
+                it.copy(
+                    isSendingTestSms = false,
+                    testSmsResultStatus = "✓ Gateway Active • SMS Dispatched to $phone",
+                    toastMessage = "Test SMS dispatched to $phone"
+                ) 
+            }
+        }
+    }
+
+    fun clearSmsLogs() {
+        viewModelScope.launch {
+            repository.clearSmsLogs()
+            _uiState.update { it.copy(toastMessage = "SMS logs cleared") }
+        }
     }
 }

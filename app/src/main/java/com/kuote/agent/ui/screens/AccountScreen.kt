@@ -1,5 +1,6 @@
 package com.kuote.agent.ui.screens
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
@@ -30,14 +31,24 @@ import com.kuote.agent.data.model.CompanyProfile
 import com.kuote.agent.data.repository.UserState
 import com.kuote.agent.monetization.RevenueCatState
 import com.kuote.agent.ui.theme.*
+import androidx.compose.material.icons.filled.Send
+import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.CheckCircle
 
 @Composable
 fun AccountScreen(
     profile: CompanyProfile,
     revenueCatState: RevenueCatState,
     userState: UserState = UserState(),
+    testSmsPhone: String = "+16304480230",
+    isSendingTestSms: Boolean = false,
+    testSmsResultStatus: String? = null,
+    smsLogsCount: Int = 0,
     isDarkMode: Boolean = true,
     onToggleDarkMode: (Boolean) -> Unit = {},
+    onUpdateTestPhone: (String) -> Unit = {},
+    onSendTestSms: () -> Unit = {},
+    onOpenSmsLogScreen: () -> Unit = {},
     onSignInWithGoogle: () -> Unit = {},
     onSignInAsGuest: () -> Unit = {},
     onSignOut: () -> Unit = {},
@@ -84,6 +95,129 @@ fun AccountScreen(
                 ) {
                     Text("Dark Mode", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
                     Switch(checked = isDarkMode, onCheckedChange = onToggleDarkMode)
+                }
+            }
+        }
+
+        // Diagnostic Feature 1 & 2: SMS Gateway Diagnostics & Status Logs
+        item {
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(18.dp))
+                    .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.6f), RoundedCornerShape(18.dp)),
+                color = MaterialTheme.colorScheme.surface
+            ) {
+                Column(
+                    modifier = Modifier.padding(18.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.Send,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(22.dp)
+                            )
+                            Column {
+                                Text(
+                                    text = "SMS GATEWAY DIAGNOSTICS",
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Black,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                                Text(
+                                    text = "Connectivity Test & Status Logs",
+                                    fontSize = 12.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+
+                        Button(
+                            onClick = onOpenSmsLogScreen,
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                                contentColor = MaterialTheme.colorScheme.primary
+                            )
+                        ) {
+                            Icon(Icons.Default.History, contentDescription = null, modifier = Modifier.size(14.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("SMS LOGS ($smsLogsCount)", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(
+                            text = "Send Test SMS to verify gateway connectivity:",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            OutlinedTextField(
+                                value = testSmsPhone,
+                                onValueChange = onUpdateTestPhone,
+                                placeholder = { Text("+16304480230") },
+                                singleLine = true,
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(12.dp)
+                            )
+
+                            Button(
+                                onClick = onSendTestSms,
+                                enabled = !isSendingTestSms && testSmsPhone.isNotBlank(),
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                if (isSendingTestSms) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(16.dp),
+                                        strokeWidth = 2.dp,
+                                        color = MaterialTheme.colorScheme.onPrimary
+                                    )
+                                } else {
+                                    Text("TEST SMS", fontWeight = FontWeight.Bold)
+                                }
+                            }
+                        }
+
+                        if (testSmsResultStatus != null) {
+                            Surface(
+                                color = Color(0xFF10B981).copy(alpha = 0.15f),
+                                shape = RoundedCornerShape(10.dp),
+                                border = BorderStroke(1.dp, Color(0xFF10B981).copy(alpha = 0.4f)),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(10.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Icon(Icons.Default.CheckCircle, contentDescription = null, tint = Color(0xFF10B981), modifier = Modifier.size(16.dp))
+                                    Text(
+                                        text = testSmsResultStatus,
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFF10B981)
+                                    )
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }

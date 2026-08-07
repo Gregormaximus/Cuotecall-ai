@@ -6,6 +6,7 @@ import com.kuote.agent.data.model.CompanyWebConfig
 import com.kuote.agent.data.model.FieldService
 import com.kuote.agent.data.model.Job
 import com.kuote.agent.data.model.Quote
+import com.kuote.agent.data.model.SmsLog
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -81,4 +82,22 @@ interface JobDao {
 
     @Query("DELETE FROM jobs WHERE id = :jobId")
     suspend fun deleteJob(jobId: String)
+}
+
+@Dao
+interface SmsLogDao {
+    @Query("SELECT * FROM sms_logs ORDER BY timestampMillis DESC")
+    fun getAllSmsLogsFlow(): Flow<List<SmsLog>>
+
+    @Query("SELECT * FROM sms_logs WHERE id = :id LIMIT 1")
+    suspend fun getSmsLogById(id: String): SmsLog?
+
+    @Query("SELECT * FROM sms_logs WHERE relatedQuoteId = :quoteId ORDER BY timestampMillis DESC LIMIT 1")
+    suspend fun getSmsLogByQuoteId(quoteId: String): SmsLog?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertSmsLog(smsLog: SmsLog)
+
+    @Query("DELETE FROM sms_logs")
+    suspend fun clearAllSmsLogs()
 }

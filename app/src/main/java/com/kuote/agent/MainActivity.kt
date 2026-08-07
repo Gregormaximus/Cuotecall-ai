@@ -33,6 +33,7 @@ import com.kuote.agent.ui.screens.ProfileScreen
 import com.kuote.agent.ui.screens.ScheduleScreen
 import com.kuote.agent.ui.screens.ServiceCatalogScreen
 import com.kuote.agent.ui.screens.SiteBuilderScreen
+import com.kuote.agent.ui.screens.SmsLogScreen
 import com.kuote.agent.ui.theme.KuoteTheme
 
 class MainActivity : ComponentActivity() {
@@ -114,6 +115,21 @@ class MainActivity : ComponentActivity() {
                                 onSignInWithEmail = { email, pass -> viewModel.signInWithEmail(email, pass) },
                                 onSignUpWithEmail = { email, pass -> viewModel.signUpWithEmail(email, pass) }
                             )
+                        } else if (uiState.isSmsLogScreenOpen) {
+                            SmsLogScreen(
+                                smsLogs = uiState.smsLogs,
+                                testSmsPhone = uiState.testSmsPhoneInput,
+                                isSendingTestSms = uiState.isSendingTestSms,
+                                testSmsResultStatus = uiState.testSmsResultStatus,
+                                onUpdateTestPhone = { viewModel.updateTestSmsPhoneInput(it) },
+                                onSendTestSms = { viewModel.sendTestSms() },
+                                onClearSmsLogs = { viewModel.clearSmsLogs() },
+                                onResendSms = { phone, msg ->
+                                    viewModel.updateTestSmsPhoneInput(phone)
+                                    viewModel.sendTestSms(msg)
+                                },
+                                onBackClick = { viewModel.toggleSmsLogScreen(false) }
+                            )
                         } else if (uiState.selectedJobForDetail != null) {
                             JobDetailScreen(
                                 job = uiState.selectedJobForDetail!!,
@@ -134,8 +150,15 @@ class MainActivity : ComponentActivity() {
                                 0 -> DashboardScreen(
                                     quotes = uiState.quotes,
                                     jobs = uiState.jobs,
+                                    smsLogs = uiState.smsLogs,
                                     analyticsStats = uiState.analyticsStats,
                                     recentConversations = uiState.recentConversations,
+                                    testSmsPhone = uiState.testSmsPhoneInput,
+                                    isSendingTestSms = uiState.isSendingTestSms,
+                                    testSmsResultStatus = uiState.testSmsResultStatus,
+                                    onUpdateTestPhone = { viewModel.updateTestSmsPhoneInput(it) },
+                                    onSendTestSms = { viewModel.sendTestSms() },
+                                    onOpenSmsLogScreen = { viewModel.toggleSmsLogScreen(true) },
                                     onApproveQuote = { viewModel.approveAndSendStripeQuote(it) },
                                     onDeclineQuote = { viewModel.declineQuote(it) },
                                     onSelectJob = { viewModel.selectJobForDetail(it) },
@@ -180,8 +203,15 @@ class MainActivity : ComponentActivity() {
                                     profile = uiState.companyProfile,
                                     revenueCatState = revenueCatState,
                                     userState = uiState.userState,
+                                    testSmsPhone = uiState.testSmsPhoneInput,
+                                    isSendingTestSms = uiState.isSendingTestSms,
+                                    testSmsResultStatus = uiState.testSmsResultStatus,
+                                    smsLogsCount = uiState.smsLogs.size,
                                     isDarkMode = uiState.isDarkMode,
                                     onToggleDarkMode = { viewModel.toggleDarkMode(it) },
+                                    onUpdateTestPhone = { viewModel.updateTestSmsPhoneInput(it) },
+                                    onSendTestSms = { viewModel.sendTestSms() },
+                                    onOpenSmsLogScreen = { viewModel.toggleSmsLogScreen(true) },
                                     onSignInWithGoogle = { viewModel.signInWithGoogle(this@MainActivity) },
                                     onSignInAsGuest = { viewModel.signInAsGuest() },
                                     onSignOut = { viewModel.signOut() },

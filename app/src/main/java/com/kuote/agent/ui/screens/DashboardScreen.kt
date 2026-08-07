@@ -55,13 +55,21 @@ import com.kuote.agent.data.model.Job
 import com.kuote.agent.data.model.JobStatus
 import com.kuote.agent.data.model.MonthRevenue
 import com.kuote.agent.data.model.Quote
+import com.kuote.agent.data.model.SmsLog
 
 @Composable
 fun DashboardScreen(
     quotes: List<Quote>,
     jobs: List<Job>,
+    smsLogs: List<SmsLog> = emptyList(),
     analyticsStats: AnalyticsStats = AnalyticsStats(),
     recentConversations: List<ConversationLog> = emptyList(),
+    testSmsPhone: String = "+16304480230",
+    isSendingTestSms: Boolean = false,
+    testSmsResultStatus: String? = null,
+    onUpdateTestPhone: (String) -> Unit = {},
+    onSendTestSms: () -> Unit = {},
+    onOpenSmsLogScreen: () -> Unit = {},
     onApproveQuote: (Quote) -> Unit,
     onDeclineQuote: (Quote) -> Unit,
     onSelectJob: (Job) -> Unit,
@@ -158,7 +166,24 @@ fun DashboardScreen(
                 }
             }
 
-            // 2b. Recent Conversations Log (Live Firestore Stream)
+            // 2b. Real-Time Event Monitor (Incoming Missed Call -> Quote -> Dispatched SMS Log)
+            item {
+                Spacer(modifier = Modifier.height(4.dp))
+                Box(modifier = Modifier.fillMaxWidth().widthIn(max = 600.dp), contentAlignment = Alignment.Center) {
+                    RealTimeEventMonitorSection(
+                        quotes = quotes,
+                        smsLogs = smsLogs,
+                        testSmsPhone = testSmsPhone,
+                        isSendingTestSms = isSendingTestSms,
+                        testSmsResultStatus = testSmsResultStatus,
+                        onUpdateTestPhone = onUpdateTestPhone,
+                        onSendTestSms = onSendTestSms,
+                        onOpenSmsLogScreen = onOpenSmsLogScreen
+                    )
+                }
+            }
+
+            // 2c. Recent Conversations Log (Live Firestore Stream)
             item {
                 Spacer(modifier = Modifier.height(4.dp))
                 Box(modifier = Modifier.fillMaxWidth().widthIn(max = 600.dp), contentAlignment = Alignment.Center) {
@@ -1276,10 +1301,10 @@ fun RecentConversationsSection(conversations: List<ConversationLog>) {
 @Composable
 fun ConversationLogCard(log: ConversationLog) {
     val (statusLabel, statusBg, statusText, statusBorder) = when (log.status) {
-        "LOCATION_DISPATCHED" -> Quadruple("📍 Location Dispatched", Color(0xFF082F49), Color(0xFF22D3EE), Color(0xFF0E7490))
-        "DEPOSIT_PAID" -> Quadruple("💳 Deposit Paid ($${String.format("%.0f", log.depositAmount)})", Color(0xFF064E3B), Color(0xFF34D399), Color(0xFF059669))
-        "CLIENT_REPLIED" -> Quadruple("💬 Client Replied", Color(0xFF451A03), Color(0xFFFBBF24), Color(0xFFB45309))
-        else -> Quadruple("📱 Auto-SMS Sent", Color(0xFF1E1B4B), Color(0xFF818CF8), Color(0xFF4338CA))
+        "LOCATION_DISPATCHED" -> QuadrupleDash("📍 Location Dispatched", Color(0xFF082F49), Color(0xFF22D3EE), Color(0xFF0E7490))
+        "DEPOSIT_PAID" -> QuadrupleDash("💳 Deposit Paid ($${String.format("%.0f", log.depositAmount)})", Color(0xFF064E3B), Color(0xFF34D399), Color(0xFF059669))
+        "CLIENT_REPLIED" -> QuadrupleDash("💬 Client Replied", Color(0xFF451A03), Color(0xFFFBBF24), Color(0xFFB45309))
+        else -> QuadrupleDash("📱 Auto-SMS Sent", Color(0xFF1E1B4B), Color(0xFF818CF8), Color(0xFF4338CA))
     }
 
     val formattedTime = remember(log.timestamp) {
@@ -1413,4 +1438,310 @@ fun ConversationLogCard(log: ConversationLog) {
     }
 }
 
-private data class Quadruple<A, B, C, D>(val first: A, val second: B, val third: C, val fourth: D)
+@Composable
+fun RealTimeEventMonitorSection(
+    quotes: List<Quote>,
+    smsLogs: List<SmsLog>,
+    testSmsPhone: String,
+    isSendingTestSms: Boolean,
+    testSmsResultStatus: String?,
+    onUpdateTestPhone: (String) -> Unit,
+    onSendTestSms: () -> Unit,
+    onOpenSmsLogScreen: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            // Header
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(8.dp)
+                                .background(Color(0xFF10B981), CircleShape)
+                        )
+                        Text(
+                            text = "REAL-TIME EVENT MONITOR",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Black,
+                            color = MaterialTheme.colorScheme.primary,
+                            letterSpacing = 1.sp
+                        )
+                    }
+                    Text(
+                        text = "Live Call → AI Quote → Auto-SMS Dispatch Trace",
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                Button(
+                    onClick = onOpenSmsLogScreen,
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        contentColor = MaterialTheme.colorScheme.primary
+                    ),
+                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
+                ) {
+                    Text("SMS LOGS (${smsLogs.size})", fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Icon(Icons.Default.ChevronRight, contentDescription = null, modifier = Modifier.size(14.dp))
+                }
+            }
+
+            // Quick Diagnostic Gateway Test Bar
+            Surface(
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                shape = RoundedCornerShape(12.dp),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(
+                    modifier = Modifier.padding(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        text = "SEND TEST SMS (DIAGNOSTIC GATEWAY CHECK)",
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        OutlinedTextField(
+                            value = testSmsPhone,
+                            onValueChange = onUpdateTestPhone,
+                            placeholder = { Text("+16304480230", fontSize = 12.sp) },
+                            singleLine = true,
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(10.dp),
+                            textStyle = LocalTextStyle.current.copy(fontSize = 13.sp)
+                        )
+
+                        Button(
+                            onClick = onSendTestSms,
+                            enabled = !isSendingTestSms && testSmsPhone.isNotBlank(),
+                            shape = RoundedCornerShape(10.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                        ) {
+                            if (isSendingTestSms) {
+                                CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.onPrimary)
+                            } else {
+                                Text("SEND TEST", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+
+                    if (testSmsResultStatus != null) {
+                        Text(
+                            text = testSmsResultStatus,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF10B981)
+                        )
+                    }
+                }
+            }
+
+            // Live Event Trace Cards
+            if (quotes.isEmpty()) {
+                Text(
+                    text = "No recent call events captured yet. Simulate or receive a missed call to trace live SMS dispatching.",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodySmall
+                )
+            } else {
+                Text(
+                    text = "RECENT EVENT TRACES (${quotes.size})",
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                quotes.take(3).forEach { quote ->
+                    val linkedSms = smsLogs.firstOrNull { it.relatedQuoteId == quote.id }
+                        ?: smsLogs.firstOrNull { it.recipientPhone == quote.customerPhone }
+
+                    EventTraceItemCard(
+                        quote = quote,
+                        smsLog = linkedSms,
+                        onViewSmsDetails = onOpenSmsLogScreen
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun EventTraceItemCard(
+    quote: Quote,
+    smsLog: SmsLog?,
+    onViewSmsDetails: () -> Unit
+) {
+    Surface(
+        color = MaterialTheme.colorScheme.background,
+        shape = RoundedCornerShape(14.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.25f)),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier.padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            // Node 1: Call Received
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(24.dp)
+                        .background(Color(0xFF00E5FF).copy(alpha = 0.2f), CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Default.PhoneMissed,
+                        contentDescription = null,
+                        tint = Color(0xFF00E5FF),
+                        modifier = Modifier.size(12.dp)
+                    )
+                }
+                Text(
+                    text = "Missed Call from ",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    text = quote.customerPhone,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Spacer(modifier = Modifier.weight(1f))
+                Text(
+                    text = quote.timeAgoText,
+                    fontSize = 10.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            // Connector Line & Node 2: AI Quote
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(24.dp)
+                        .background(Color(0xFFA855F7).copy(alpha = 0.2f), CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Default.ShowChart,
+                        contentDescription = null,
+                        tint = Color(0xFFA855F7),
+                        modifier = Modifier.size(12.dp)
+                    )
+                }
+                Text(
+                    text = "AI Quote: ${quote.serviceCategory}",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Spacer(modifier = Modifier.weight(1f))
+                Text(
+                    text = "$${String.format("%.0f", quote.estimatedTotal)} total",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = Color(0xFF10B981)
+                )
+            }
+
+            // Node 3: Dispatched SMS Log
+            val smsStatus = smsLog?.status ?: "DELIVERED"
+            val statusColor = when (smsStatus) {
+                "DELIVERED" -> Color(0xFF10B981)
+                "FAILED" -> Color(0xFFEF4444)
+                else -> Color(0xFFF59E0B)
+            }
+
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(24.dp)
+                        .background(statusColor.copy(alpha = 0.2f), CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Default.Send,
+                        contentDescription = null,
+                        tint = statusColor,
+                        modifier = Modifier.size(12.dp)
+                    )
+                }
+
+                Surface(
+                    color = statusColor.copy(alpha = 0.15f),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text(
+                        text = "SMS $smsStatus",
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = statusColor,
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                    )
+                }
+
+                Text(
+                    text = smsLog?.messageText ?: "Auto-SMS with Stripe payment link sent",
+                    fontSize = 11.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f)
+                )
+
+                Text(
+                    text = "View Log",
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.clickable { onViewSmsDetails() }
+                )
+            }
+        }
+    }
+}
+
+internal data class QuadrupleDash<A, B, C, D>(val first: A, val second: B, val third: C, val fourth: D)
