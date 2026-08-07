@@ -11,6 +11,7 @@ import com.kuote.agent.ai.MultimodalIntakeEngine
 import com.kuote.agent.data.repository.KuoteRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 class MissedCallReceiver : BroadcastReceiver() {
@@ -37,26 +38,18 @@ class MissedCallReceiver : BroadcastReceiver() {
                     isIncomingRinging = false
                 }
                 TelephonyManager.EXTRA_STATE_IDLE -> {
-                    // Call ended. If it was ringing and never went offhook -> MISSED CALL!
+                    // Call ended. If it was ringing and never went offhook -> MISSED/REJECTED CALL!
                     android.util.Log.d("MissedCallReceiver", "IDLE: isIncomingRinging: $isIncomingRinging, lastIncomingNumber: $lastIncomingNumber")
                     if (isIncomingRinging) {
                         isIncomingRinging = false
-                        var missedNumber = when {
+                        val missedNumber = when {
                             lastIncomingNumber.isNotBlank() -> lastIncomingNumber
                             incomingNumber.isNotBlank() -> incomingNumber
                             else -> ""
                         }
-                        if (missedNumber.isBlank()) {
-                            missedNumber = fetchLastCallLogNumber(context)
-                        }
 
-                        if (missedNumber.isBlank()) {
-                            android.util.Log.w("MissedCallReceiver", "Could not retrieve caller phone number. Skipping auto-reply.")
-                            return
-                        }
-
-                        android.util.Log.d("MissedCallReceiver", "Processing missed call for real caller: $missedNumber")
-                        processMissedCall(context, missedNumber)
+                        android.util.Log.d("MissedCallReceiver", "Triggering async missed call handler for: '$missedNumber'")
+                        processMissedCall(context.applicationContext, missedNumber)
                     }
                 }
             }
@@ -64,13 +57,83 @@ class MissedCallReceiver : BroadcastReceiver() {
         }
     }
 
-    private fun fetchLastCallLogNumber(context: Context): String {
+    private fun processMissedCall(context: Context, initialPhoneNumber: String) {
+        val repository = KuoteRepository(context)
+        val notifHelper = NotificationHelper(context)
+        val intakeEngine = MultimodalIntakeEngine()
+        com.kuote.agent.util.ContactCache.init(context)
+
+        CoroutineScope(Dispatchers.IO).launch {
+            val company = repository.getCompanyProfileDirect()
+            if (!company.isAgentActive) {
+                android.util.Log.d("MissedCallReceiver", "Agent is inactive in settings. Skipping auto-reply.")
+                return@launch
+            }
+
+            var targetNumber = initialPhoneNumber
+
+            // Polling CallLog if initialPhoneNumber was withheld/empty by Android OS
+            if (targetNumber.isBlank()) {
+                val delays = listOf(500L, 1000L, 1500L, 2000L)
+                for (d in delays) {
+                    delay(d)
+                    val logNumber = fetchRecentCallLogNumber(context)
+                    if (logNumber.isNotBlank()) {
+                        targetNumber = logNumber
+                        android.util.Log.d("MissedCallReceiver", "Retrieved real caller number from CallLog: $targetNumber")
+                        break
+                    }
+                }
+            }
+
+            val cleanNumber = targetNumber.replace(Regex("[^0-9+]"), "")
+
+            if (cleanNumber.length < 6) {
+                android.util.Log.w("MissedCallReceiver", "Unable to determine caller number from intent or CallLog. Skipping auto-reply.")
+                return@launch
+            }
+
+            // Filter out personal contacts saved in address book!
+            if (com.kuote.agent.util.ContactCache.isContact(cleanNumber)) {
+                android.util.Log.d("MissedCallReceiver", "Number $cleanNumber is in Contacts. Skipping AI auto-reply.")
+                return@launch
+            }
+
+            val services = repository.getServicesDirect()
+            val rawSlug = company.name.lowercase().trim().replace(Regex("[^a-z0-9]+"), "-").trim('-')
+            val slug = if (rawSlug.isBlank()) "apex-electric-pros" else rawSlug
+            val smsMessage = "${company.autoSmsTemplate} https://ais-dev-evjq6zhfgibldhq4rn7mw2-55455507008.us-west2.run.app/?slug=$slug"
+
+            android.util.Log.d("MissedCallReceiver", "Sending instant auto-SMS to $cleanNumber")
+
+            // 1. Send Instant Auto-SMS
+            notifHelper.sendInstantSms(cleanNumber, smsMessage)
+
+            // 2. Generate AI Quote for missed call
+            val quote = intakeEngine.analyzeCustomerRequest(
+                customerPhone = cleanNumber,
+                location = "Redwood City",
+                textInput = "Incoming missed call response requested for $cleanNumber",
+                companyProfile = company,
+                services = services
+            )
+
+            // 3. Save Quote to Room / Firestore & Trigger Notification
+            repository.saveQuote(quote)
+            notifHelper.showQuoteNotification(quote, company.name)
+        }
+    }
+
+    private fun fetchRecentCallLogNumber(context: Context): String {
         if (ContextCompat.checkSelfPermission(context, android.Manifest.permission.READ_CALL_LOG) == PackageManager.PERMISSION_GRANTED) {
             try {
+                // Query calls made in the last 60 seconds
+                val minTime = System.currentTimeMillis() - 60_000
                 val cursor = context.contentResolver.query(
                     CallLog.Calls.CONTENT_URI,
-                    arrayOf(CallLog.Calls.NUMBER),
-                    null, null,
+                    arrayOf(CallLog.Calls.NUMBER, CallLog.Calls.DATE),
+                    "${CallLog.Calls.DATE} >= ?",
+                    arrayOf(minTime.toString()),
                     "${CallLog.Calls.DATE} DESC"
                 )
                 cursor?.use {
@@ -83,50 +146,9 @@ class MissedCallReceiver : BroadcastReceiver() {
                     }
                 }
             } catch (e: Exception) {
-                android.util.Log.e("MissedCallReceiver", "Failed to query CallLog", e)
+                android.util.Log.e("MissedCallReceiver", "Failed to query recent CallLog", e)
             }
         }
         return ""
-    }
-
-    private fun processMissedCall(context: Context, phoneNumber: String) {
-        val repository = KuoteRepository(context.applicationContext)
-        val notifHelper = NotificationHelper(context.applicationContext)
-        val intakeEngine = MultimodalIntakeEngine()
-        com.kuote.agent.util.ContactCache.init(context.applicationContext)
-
-        CoroutineScope(Dispatchers.IO).launch {
-            val company = repository.getCompanyProfileDirect()
-            if (!company.isAgentActive) return@launch
-
-            // Filter out personal contacts saved in phonebook!
-            if (com.kuote.agent.util.ContactCache.isContact(phoneNumber)) {
-                android.util.Log.d("MissedCallReceiver", "Number $phoneNumber is in Contacts. Skipping AI auto-reply.")
-                return@launch
-            }
-
-            val services = repository.getServicesDirect()
-            val webConfig = repository.webConfigFlow
-
-            val rawSlug = company.name.lowercase().trim().replace(Regex("[^a-z0-9]+"), "-").trim('-')
-            val slug = if (rawSlug.isBlank()) "apex-electric-pros" else rawSlug
-            val smsMessage = "${company.autoSmsTemplate} https://ais-dev-evjq6zhfgibldhq4rn7mw2-55455507008.us-west2.run.app/?slug=$slug"
-            
-            // 1. Send Instant Auto-SMS
-            notifHelper.sendInstantSms(phoneNumber, smsMessage)
-
-            // 2. Generate AI Quote for missed call
-            val quote = intakeEngine.analyzeCustomerRequest(
-                customerPhone = phoneNumber,
-                location = "Redwood City",
-                textInput = "Incoming missed call response requested for $phoneNumber",
-                companyProfile = company,
-                services = services
-            )
-
-            // 3. Save Quote to Room / Firestore & Trigger Notification
-            repository.saveQuote(quote)
-            notifHelper.showQuoteNotification(quote, company.name)
-        }
     }
 }

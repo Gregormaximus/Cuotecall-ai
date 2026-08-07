@@ -65,8 +65,9 @@ class NotificationHelper(private val context: Context) {
     }
 
     fun sendInstantSms(phoneNumber: String, messageText: String) {
-        if (phoneNumber.isBlank() || phoneNumber.startsWith("+1 (555)")) {
-            android.util.Log.w("NotificationHelper", "Invalid or dummy phone number '$phoneNumber'. Skipping real SMS delivery.")
+        val cleanNumber = phoneNumber.replace(Regex("[^0-9+]"), "")
+        if (cleanNumber.length < 6 || cleanNumber.startsWith("+1555")) {
+            android.util.Log.w("NotificationHelper", "Invalid or dummy phone number '$cleanNumber'. Skipping real SMS delivery.")
             showToast("SMS skipped (invalid phone number)")
             return
         }
@@ -81,14 +82,14 @@ class NotificationHelper(private val context: Context) {
             
             val parts = smsManager.divideMessage(messageText)
             if (parts.size > 1) {
-                smsManager.sendMultipartTextMessage(phoneNumber, null, parts, null, null)
+                smsManager.sendMultipartTextMessage(cleanNumber, null, parts, null, null)
             } else {
-                smsManager.sendTextMessage(phoneNumber, null, messageText, null, null)
+                smsManager.sendTextMessage(cleanNumber, null, messageText, null, null)
             }
-            android.util.Log.d("NotificationHelper", "SMS sent successfully to $phoneNumber")
-            showToast("Instant SMS sent to $phoneNumber")
+            android.util.Log.d("NotificationHelper", "SMS sent successfully to $cleanNumber")
+            showToast("Instant SMS sent to $cleanNumber")
         } catch (e: Exception) {
-            android.util.Log.e("NotificationHelper", "Failed sending real SMS to $phoneNumber", e)
+            android.util.Log.e("NotificationHelper", "Failed sending real SMS to $cleanNumber", e)
             showToast("SMS send error: ${e.localizedMessage}")
         }
     }
