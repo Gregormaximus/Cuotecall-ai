@@ -452,6 +452,10 @@ class AuthRepository(private val context: Context) {
                     .collection("services").document(service.id)
                     .set(serviceData, SetOptions.merge())
                     .await()
+                firestore.collection("tenants").document("tenant_starlink_batavia")
+                    .collection("catalog").document(service.id)
+                    .set(serviceData, SetOptions.merge())
+                    .await()
             } catch (te: Exception) {
                 Log.w("AuthRepository", "Tenant service sync notice", te)
             }

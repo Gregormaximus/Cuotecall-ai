@@ -25,8 +25,10 @@ import com.kuote.agent.data.repository.UserState
 import com.kuote.agent.monetization.RevenueCatManager
 import com.kuote.agent.service.MissedCallAgentService
 import com.kuote.agent.service.NotificationHelper
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.util.UUID
 
 data class MainUiState(
@@ -279,76 +281,115 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun runAiAutoSetup(query: String) {
-        viewModelScope.launch {
-            val q = query.lowercase()
-            val createdServices = mutableListOf<FieldService>()
+    suspend fun runAiAutoSetup(query: String) = withContext(Dispatchers.IO) {
+        val apiKey = com.kuote.agent.data.remote.GeminiApiClient.getApiKey()
+        val createdServices = mutableListOf<FieldService>()
+        var usedGeminiApi = false
 
-            if (q.contains("starlink") || q.contains("satellite") || q.contains("skynet") || q.contains("mount") || q.contains("cable")) {
-                createdServices.add(
-                    FieldService(
-                        id = "s_" + UUID.randomUUID().toString().take(6),
-                        name = "Starlink Roof Mount Installation",
-                        category = "SATELLITE",
-                        basePrice = 200.0,
-                        ratePerMile = 0.0,
-                        aiKeywords = listOf("Starlink", "Roof Mount", "Dish Installation", "Mounting"),
-                        status = "ACTIVE"
-                    )
-                )
-                createdServices.add(
-                    FieldService(
-                        id = "s_" + UUID.randomUUID().toString().take(6),
-                        name = "Custom Cable Routing & Setup",
-                        category = "SATELLITE",
-                        basePrice = 75.0,
-                        ratePerMile = 0.0,
-                        aiKeywords = listOf("Cable Routing", "Wall Pass-through", "Ethernet Run", "Network Config"),
-                        status = "ACTIVE"
-                    )
-                )
-            } else if (q.contains("towing") || q.contains("tow")) {
-                createdServices.add(FieldService(id = "s_" + UUID.randomUUID().toString().take(6), name = "Heavy Duty Towing", category = "TOWING", basePrice = 150.0, ratePerMile = 6.0, aiKeywords = listOf("Semi Towing", "Heavy Tow", "Winched"), status = "ACTIVE"))
-                createdServices.add(FieldService(id = "s_" + UUID.randomUUID().toString().take(6), name = "Flatbed Transport", category = "TOWING", basePrice = 110.0, ratePerMile = 5.0, aiKeywords = listOf("Flatbed", "Exotic Car Tow", "AWD Towing"), status = "ACTIVE"))
-            } else if (q.contains("mechanic") || q.contains("auto")) {
-                createdServices.add(FieldService(id = "s_" + UUID.randomUUID().toString().take(6), name = "Mobile Diagnostic Scan", category = "MECHANIC", basePrice = 89.0, ratePerMile = 1.5, aiKeywords = listOf("Check Engine", "OBD Scan", "No Start"), status = "ACTIVE"))
-                createdServices.add(FieldService(id = "s_" + UUID.randomUUID().toString().take(6), name = "Brake & Battery Swap", category = "MECHANIC", basePrice = 120.0, ratePerMile = 2.0, aiKeywords = listOf("Dead Battery", "Brake Noise", "Alternator"), status = "ACTIVE"))
-            } else if (q.contains("plumbing") || q.contains("pipe")) {
-                createdServices.add(FieldService(id = "s_" + UUID.randomUUID().toString().take(6), name = "Drain Unclogging", category = "PLUMBING", basePrice = 125.0, ratePerMile = 0.0, aiKeywords = listOf("Clogged Drain", "Toilet Overflow", "Sink Backup"), status = "ACTIVE"))
-                createdServices.add(FieldService(id = "s_" + UUID.randomUUID().toString().take(6), name = "Emergency Pipe Repair", category = "PLUMBING", basePrice = 185.0, ratePerMile = 0.0, aiKeywords = listOf("Burst Pipe", "Water Leak", "Main Valve"), status = "ACTIVE"))
-            } else {
-                // Try parsing dollar values from unstructured text/OCR/URL
-                val priceMatches = Regex("""([A-Za-z0-9\s&/-]+?)\s*\$?\s*(\d+(\.\d{1,2})?)""").findAll(query).toList()
-                if (priceMatches.isNotEmpty()) {
-                    for (m in priceMatches.take(4)) {
-                        val serviceTitle = m.groupValues[1].trim().trim(':', '-', '$', ',')
-                        val priceVal = m.groupValues[2].toDoubleOrNull() ?: 95.0
-                        if (serviceTitle.length in 3..40) {
-                            createdServices.add(
-                                FieldService(
-                                    id = "s_" + UUID.randomUUID().toString().take(6),
-                                    name = serviceTitle.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() },
-                                    category = "EXTRACTED",
-                                    basePrice = priceVal,
-                                    ratePerMile = 0.0,
-                                    aiKeywords = listOf("Extracted", serviceTitle.take(15)),
-                                    status = "ACTIVE"
-                                )
+        if (apiKey.isNotBlank()) {
+            try {
+                val geminiExtracted = multimodalEngine.extractServicesFromPrompt(query)
+                if (geminiExtracted.isNotEmpty()) {
+                    geminiExtracted.forEach { item ->
+                        createdServices.add(
+                            FieldService(
+                                id = "s_" + UUID.randomUUID().toString().take(6),
+                                name = item.name,
+                                category = "EXTRACTED",
+                                basePrice = item.price,
+                                ratePerMile = 0.0,
+                                aiKeywords = listOfNotNull("Extracted", item.name.take(15), item.description.take(15)).filter { it.isNotBlank() },
+                                status = "ACTIVE"
                             )
-                        }
+                        )
+                    }
+                    usedGeminiApi = true
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+
+        if (createdServices.isEmpty()) {
+            val q = query.lowercase()
+            val priceMatches = Regex("""([A-Za-z0-9\s&/-]+?)\s*\(?\$?\s*(\d+(\.\d{1,2})?)\)?""").findAll(query).toList()
+            if (priceMatches.isNotEmpty()) {
+                for (m in priceMatches) {
+                    val serviceTitle = m.groupValues[1].trim().trim(':', '-', '$', ',', '(', ')')
+                    val priceVal = m.groupValues[2].toDoubleOrNull() ?: 95.0
+                    if (serviceTitle.length in 3..50 && !serviceTitle.equals("and", ignoreCase = true)) {
+                        createdServices.add(
+                            FieldService(
+                                id = "s_" + UUID.randomUUID().toString().take(6),
+                                name = serviceTitle.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() },
+                                category = "EXTRACTED",
+                                basePrice = priceVal,
+                                ratePerMile = 0.0,
+                                aiKeywords = listOf("Extracted", serviceTitle.take(15)),
+                                status = "ACTIVE"
+                            )
+                        )
                     }
                 }
-                if (createdServices.isEmpty()) {
+            }
+
+            if (createdServices.isEmpty()) {
+                if (q.contains("starlink") || q.contains("satellite") || q.contains("skynet") || q.contains("mount") || q.contains("cable")) {
+                    createdServices.add(
+                        FieldService(
+                            id = "s_" + UUID.randomUUID().toString().take(6),
+                            name = "Starlink Roof Mount Installation",
+                            category = "SATELLITE",
+                            basePrice = 200.0,
+                            ratePerMile = 0.0,
+                            aiKeywords = listOf("Starlink", "Roof Mount", "Dish Installation", "Mounting"),
+                            status = "ACTIVE"
+                        )
+                    )
+                    createdServices.add(
+                        FieldService(
+                            id = "s_" + UUID.randomUUID().toString().take(6),
+                            name = "Custom Cable Routing & Setup",
+                            category = "SATELLITE",
+                            basePrice = 75.0,
+                            ratePerMile = 0.0,
+                            aiKeywords = listOf("Cable Routing", "Wall Pass-through", "Ethernet Run", "Network Config"),
+                            status = "ACTIVE"
+                        )
+                    )
+                } else if (q.contains("towing") || q.contains("tow")) {
+                    createdServices.add(FieldService(id = "s_" + UUID.randomUUID().toString().take(6), name = "Heavy Duty Towing", category = "TOWING", basePrice = 150.0, ratePerMile = 6.0, aiKeywords = listOf("Semi Towing", "Heavy Tow", "Winched"), status = "ACTIVE"))
+                    createdServices.add(FieldService(id = "s_" + UUID.randomUUID().toString().take(6), name = "Flatbed Transport", category = "TOWING", basePrice = 110.0, ratePerMile = 5.0, aiKeywords = listOf("Flatbed", "Exotic Car Tow", "AWD Towing"), status = "ACTIVE"))
+                } else if (q.contains("mechanic") || q.contains("auto")) {
+                    createdServices.add(FieldService(id = "s_" + UUID.randomUUID().toString().take(6), name = "Mobile Diagnostic Scan", category = "MECHANIC", basePrice = 89.0, ratePerMile = 1.5, aiKeywords = listOf("Check Engine", "OBD Scan", "No Start"), status = "ACTIVE"))
+                    createdServices.add(FieldService(id = "s_" + UUID.randomUUID().toString().take(6), name = "Brake & Battery Swap", category = "MECHANIC", basePrice = 120.0, ratePerMile = 2.0, aiKeywords = listOf("Dead Battery", "Brake Noise", "Alternator"), status = "ACTIVE"))
+                } else if (q.contains("plumbing") || q.contains("pipe")) {
+                    createdServices.add(FieldService(id = "s_" + UUID.randomUUID().toString().take(6), name = "Drain Unclogging", category = "PLUMBING", basePrice = 125.0, ratePerMile = 0.0, aiKeywords = listOf("Clogged Drain", "Toilet Overflow", "Sink Backup"), status = "ACTIVE"))
+                    createdServices.add(FieldService(id = "s_" + UUID.randomUUID().toString().take(6), name = "Emergency Pipe Repair", category = "PLUMBING", basePrice = 185.0, ratePerMile = 0.0, aiKeywords = listOf("Burst Pipe", "Water Leak", "Main Valve"), status = "ACTIVE"))
+                } else {
                     val serviceName = query.take(35).ifBlank { "Custom Field Service" }
                     createdServices.add(FieldService(id = "s_" + UUID.randomUUID().toString().take(6), name = serviceName, category = "GENERAL", basePrice = 95.0, ratePerMile = 0.0, aiKeywords = listOf("Emergency", "Onsite Service", "Dispatch"), status = "ACTIVE"))
                 }
             }
+        }
 
-            createdServices.forEach {
-                repository.saveService(it)
-                authRepository.syncServiceToFirestore(it)
-            }
-            _uiState.update { it.copy(toastMessage = "AI extracted ${createdServices.size} services into catalog!") }
+        createdServices.forEach { service ->
+            repository.saveService(service)
+            authRepository.syncServiceToFirestore(service)
+        }
+
+        val allServices = repository.getServicesDirect()
+        _uiState.update { current ->
+            current.copy(
+                services = allServices,
+                toastMessage = if (usedGeminiApi) {
+                    "✨ Gemini 3.5 Flash extracted ${createdServices.size} catalog items!"
+                } else if (apiKey.isBlank()) {
+                    "Extracted ${createdServices.size} catalog items (Gemini API key missing, using local parser)"
+                } else {
+                    "Extracted ${createdServices.size} catalog items!"
+                }
+            )
         }
     }
 

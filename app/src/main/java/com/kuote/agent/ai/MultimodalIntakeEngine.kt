@@ -24,6 +24,12 @@ data class GeminiQuoteOutput(
     val action_required: String = "SEND_STRIPE_PAYMENT_LINK"
 )
 
+data class ExtractedServiceItem(
+    val name: String,
+    val price: Double,
+    val description: String = ""
+)
+
 class MultimodalIntakeEngine {
 
     private val moshi = Moshi.Builder().add(KotlinJsonAdapterFactory()).build()
@@ -167,5 +173,75 @@ class MultimodalIntakeEngine {
         } catch (e: Exception) {
             null
         }
+    }
+
+    suspend fun extractServicesFromPrompt(query: String): List<ExtractedServiceItem> = withContext(Dispatchers.IO) {
+        val apiKey = GeminiApiClient.getApiKey()
+        if (apiKey.isBlank()) {
+            return@withContext emptyList()
+        }
+
+        val systemPrompt = """
+            You are an AI catalog intake parser for field service businesses.
+            Parse the user's input text, photo notes, or pricing link content and extract all service offerings.
+            
+            Respond ONLY with a valid JSON ARRAY of objects with EXACTLY these fields:
+            "name" (string): Service title/name
+            "price" (number): Base price or flat rate as Double
+            "description" (string): Short description or keywords
+            
+            Example JSON output:
+            [
+              {
+                "name": "Starlink Roof Mount Installation",
+                "price": 200.00,
+                "description": "Mounting dish on roof structure"
+              },
+              {
+                "name": "Custom Cable Routing",
+                "price": 75.00,
+                "description": "Ethernet cable run and wall pass-through"
+              }
+            ]
+        """.trimIndent()
+
+        val request = GeminiRequest(
+            contents = listOf(GeminiContent(parts = listOf(GeminiPart(text = "Extract service items from this input: $query")))),
+            systemInstruction = GeminiContent(parts = listOf(GeminiPart(text = systemPrompt))),
+            generationConfig = com.kuote.agent.data.remote.GenerationConfig(temperature = 0.1f, responseMimeType = "application/json")
+        )
+
+        try {
+            val response = GeminiApiClient.service.generateContent(apiKey, request)
+            val responseText = response.candidates?.firstOrNull()?.content?.parts?.firstOrNull()?.text ?: ""
+            return@withContext parseServicesJsonArray(responseText)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            return@withContext emptyList()
+        }
+    }
+
+    private fun parseServicesJsonArray(jsonText: String): List<ExtractedServiceItem> {
+        val clean = jsonText.trim()
+            .removePrefix("```json")
+            .removePrefix("```")
+            .removeSuffix("```")
+            .trim()
+        val results = mutableListOf<ExtractedServiceItem>()
+        try {
+            val array = org.json.JSONArray(clean)
+            for (i in 0 until array.length()) {
+                val obj = array.getJSONObject(i)
+                val name = obj.optString("name", obj.optString("service_name", "Field Service"))
+                val price = obj.optDouble("price", obj.optDouble("estimated_total", 95.0))
+                val desc = obj.optString("description", obj.optString("customer_summary", ""))
+                if (name.isNotBlank()) {
+                    results.add(ExtractedServiceItem(name = name, price = price, description = desc))
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        return results
     }
 }

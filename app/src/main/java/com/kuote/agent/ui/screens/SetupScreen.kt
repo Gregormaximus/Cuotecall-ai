@@ -25,6 +25,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.launch
 import com.kuote.agent.data.model.CompanyProfile
 import com.kuote.agent.data.model.FieldService
 import com.kuote.agent.ui.theme.*
@@ -40,9 +41,10 @@ fun SetupScreen(
     onDeleteService: (FieldService) -> Unit,
     onUpdateService: (FieldService) -> Unit,
     onToggleSmartPricing: (Boolean) -> Unit,
-    onAutoSetup: (String) -> Unit
+    onAutoSetup: suspend (String) -> Unit
 ) {
     val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
 
     // Profile state
     var companyName by remember(profile) { mutableStateOf(profile.name) }
@@ -436,8 +438,15 @@ fun SetupScreen(
                                         onClick = {
                                             if (intakeInputText.isNotBlank()) {
                                                 isProcessingAi = true
-                                                onAutoSetup(intakeInputText)
-                                                isProcessingAi = false
+                                                coroutineScope.launch {
+                                                    try {
+                                                        onAutoSetup(intakeInputText)
+                                                    } catch (e: Exception) {
+                                                        Toast.makeText(context, "Extraction error: ${e.message}", Toast.LENGTH_SHORT).show()
+                                                    } finally {
+                                                        isProcessingAi = false
+                                                    }
+                                                }
                                             } else {
                                                 Toast.makeText(context, "Please enter text, a photo, or URL first", Toast.LENGTH_SHORT).show()
                                             }
@@ -477,7 +486,14 @@ fun SetupScreen(
                                         .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(12.dp))
                                         .clickable {
                                             intakeInputText = prompt
-                                            onAutoSetup(prompt)
+                                            isProcessingAi = true
+                                            coroutineScope.launch {
+                                                try {
+                                                    onAutoSetup(prompt)
+                                                } finally {
+                                                    isProcessingAi = false
+                                                }
+                                            }
                                         }
                                 ) {
                                     Text(
