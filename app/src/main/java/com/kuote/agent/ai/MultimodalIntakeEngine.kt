@@ -185,6 +185,11 @@ class MultimodalIntakeEngine {
             You are an AI catalog intake parser for field service businesses.
             Parse the user's input text, photo notes, or pricing link content and extract all service offerings.
             
+            Extract a clean list of individual services with their exact titles and base prices.
+            Do NOT split service titles on words like 'up to', 'per line', or 'each'.
+            Ignore context notes when determining the title name, but keep the full descriptive name intact 
+            (e.g., 'Wi-Fi Mesh Setup (Up to 2 routers)' -> Price: 80.00).
+
             Respond ONLY with a valid JSON ARRAY of objects with EXACTLY these fields:
             "name" (string): Service title/name
             "price" (number): Base price or flat rate as Double
@@ -193,14 +198,9 @@ class MultimodalIntakeEngine {
             Example JSON output:
             [
               {
-                "name": "Starlink Roof Mount Installation",
-                "price": 200.00,
-                "description": "Mounting dish on roof structure"
-              },
-              {
-                "name": "Custom Cable Routing",
-                "price": 75.00,
-                "description": "Ethernet cable run and wall pass-through"
+                "name": "Wi-Fi Mesh Setup (Up to 2 routers)",
+                "price": 80.00,
+                "description": "Mesh network setup"
               }
             ]
         """.trimIndent()
@@ -235,7 +235,7 @@ class MultimodalIntakeEngine {
                 val name = obj.optString("name", obj.optString("service_name", "Field Service"))
                 val price = obj.optDouble("price", obj.optDouble("estimated_total", 95.0))
                 val desc = obj.optString("description", obj.optString("customer_summary", ""))
-                if (name.isNotBlank()) {
+                if (name.length >= 3 && !invalidFragments.any { name.contains(it, ignoreCase = true) }) {
                     results.add(ExtractedServiceItem(name = name, price = price, description = desc))
                 }
             }
@@ -244,4 +244,6 @@ class MultimodalIntakeEngine {
         }
         return results
     }
+
+    private val invalidFragments = listOf("up to", "for", "each")
 }
