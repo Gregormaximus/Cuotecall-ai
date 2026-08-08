@@ -299,6 +299,19 @@ class AuthRepository(private val context: Context) {
                 .set(profileData, SetOptions.merge())
                 .await()
 
+            // Also sync to multi-tenant store for tenant_starlink_batavia live testing
+            try {
+                firestore.collection("tenants").document("tenant_starlink_batavia")
+                    .set(mapOf("profile" to profileData, "updatedAt" to System.currentTimeMillis()), SetOptions.merge())
+                    .await()
+                firestore.collection("tenants").document("tenant_starlink_batavia")
+                    .collection("companyProfile").document("main")
+                    .set(profileData, SetOptions.merge())
+                    .await()
+            } catch (te: Exception) {
+                Log.w("AuthRepository", "Tenant starlink batavia sync notice", te)
+            }
+
             // Also persist to global site collection by slug for public Micro-site access
             val slug = profile.name.lowercase().trim().replace(Regex("[^a-z0-9]+"), "-").removeSuffix("-")
             if (slug.isNotBlank()) {
@@ -433,6 +446,15 @@ class AuthRepository(private val context: Context) {
                 .collection("services").document(service.id)
                 .set(serviceData, SetOptions.merge())
                 .await()
+
+            try {
+                firestore.collection("tenants").document("tenant_starlink_batavia")
+                    .collection("services").document(service.id)
+                    .set(serviceData, SetOptions.merge())
+                    .await()
+            } catch (te: Exception) {
+                Log.w("AuthRepository", "Tenant service sync notice", te)
+            }
         } catch (e: Exception) {
             Log.w("AuthRepository", "Firestore service error", e)
         }

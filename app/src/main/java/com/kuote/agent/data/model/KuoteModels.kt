@@ -5,15 +5,16 @@ import androidx.room.PrimaryKey
 
 @Entity(tableName = "company_profile")
 data class CompanyProfile(
-    @PrimaryKey val id: String = "company_default",
-    val name: String = "My Business",
-    val industry: String = "Field Services",
-    val autoSmsTemplate: String = "Sorry we missed your call! I'm currently on a job. Reply with your service need or tap: ",
+    @PrimaryKey val id: String = "tenant_starlink_batavia",
+    val name: String = "Skynet One",
+    val industry: String = "Starlink & Satellite Installation",
+    val autoSmsTemplate: String = "Sorry we missed your call from Skynet One! Reply with your service need or tap: ",
     val defaultDeposit: Double = 50.00,
     val baseServiceFee: Double = 100.00,
-    val stripeAccountId: String = "",
+    val stripeAccountId: String = "acct_starlink_batavia",
     val isAgentActive: Boolean = true,
-    val phone: String = ""
+    val phone: String = "(630) 555-0199",
+    val hqAddress: String = "701 Branson Dr, Batavia, IL 60510"
 )
 
 @Entity(tableName = "field_services")
@@ -50,14 +51,14 @@ data class Quote(
 
 @Entity(tableName = "company_web_config")
 data class CompanyWebConfig(
-    @PrimaryKey val companyId: String = "company_default",
-    val siteTitle: String = "My Business",
-    val siteSubtitle: String = "Professional Field Services",
+    @PrimaryKey val companyId: String = "tenant_starlink_batavia",
+    val siteTitle: String = "Skynet One",
+    val siteSubtitle: String = "Starlink & Satellite Installation - 701 Branson Dr, Batavia, IL 60510",
     val themeColorHex: String = "#00E5FF",
     val voiceCallButtonText: String = "Instant AI Dispatch",
     val voiceCallDescription: String = "Speak directly with our AI dispatcher",
     val quickDepositFee: Double = 50.00,
-    val deployedUrl: String = "https://quotebit.app/?slug=my-business"
+    val deployedUrl: String = "https://quotebit.app/?slug=skynet-one"
 )
 
 data class IndustryPreset(

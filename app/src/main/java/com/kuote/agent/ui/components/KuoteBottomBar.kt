@@ -9,9 +9,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Dashboard
-import androidx.compose.material.icons.filled.MenuBook
-import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -37,10 +37,9 @@ fun KuoteBottomBar(
     val items = listOf(
         BottomNavItem("Dashboard", Icons.Default.Dashboard, 0),
         BottomNavItem("Schedule", Icons.Default.CalendarMonth, 1),
-        BottomNavItem("Site", Icons.Default.Build, 2),
-        BottomNavItem("Profile", Icons.Default.Person, 3),
-        BottomNavItem("Catalog", Icons.Default.MenuBook, 4),
-        BottomNavItem("Account", Icons.Default.Settings, 5)
+        BottomNavItem("Setup", Icons.Default.Tune, 2),
+        BottomNavItem("Site", Icons.Default.Language, 3),
+        BottomNavItem("Account", Icons.Default.Settings, 4)
     )
 
     Surface(

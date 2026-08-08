@@ -32,17 +32,18 @@ class KuoteRepository(context: Context) {
 
     suspend fun initializeDefaultDataIfEmpty() = withContext(Dispatchers.IO) {
         val currentProfile = profileDao.getCompanyProfile()
-        if (currentProfile == null || currentProfile.name == "Apex Electric Pros") {
+        if (currentProfile == null || currentProfile.name == "My Business" || currentProfile.name == "Apex Electric Pros") {
             val defaultProfile = CompanyProfile(
-                id = "company_default",
-                name = "My Business",
-                industry = "Field Services",
-                autoSmsTemplate = "Sorry we missed your call! I'm currently on a job. Reply with your service need or tap: ",
+                id = "tenant_starlink_batavia",
+                name = "Skynet One",
+                industry = "Starlink & Satellite Installation",
+                autoSmsTemplate = "Sorry we missed your call from Skynet One! Tap link for instant quote & booking: ",
                 defaultDeposit = 50.00,
                 baseServiceFee = 100.00,
-                stripeAccountId = "",
+                stripeAccountId = "acct_starlink_batavia",
                 isAgentActive = true,
-                phone = ""
+                phone = "(630) 555-0199",
+                hqAddress = "701 Branson Dr, Batavia, IL 60510"
             )
             profileDao.insertOrUpdateProfile(defaultProfile)
             
@@ -51,15 +52,39 @@ class KuoteRepository(context: Context) {
             quoteDao.deleteAllQuotes()
             smsLogDao.clearAllSmsLogs()
             serviceDao.deleteAllServices()
+
+            // Seed clean Starlink installation services
+            serviceDao.insertService(
+                FieldService(
+                    id = "s_starlink_mount",
+                    name = "Starlink Roof Mount Installation",
+                    category = "SATELLITE",
+                    basePrice = 200.0,
+                    ratePerMile = 0.0,
+                    aiKeywords = listOf("Starlink", "Roof Mount", "Dish Installation", "Mounting"),
+                    status = "ACTIVE"
+                )
+            )
+            serviceDao.insertService(
+                FieldService(
+                    id = "s_starlink_cable",
+                    name = "Custom Cable Routing & Setup",
+                    category = "SATELLITE",
+                    basePrice = 75.0,
+                    ratePerMile = 0.0,
+                    aiKeywords = listOf("Cable Routing", "Wall Pass-through", "Ethernet Run", "Network Config"),
+                    status = "ACTIVE"
+                )
+            )
         }
 
-        if (webConfigDao.getWebConfigFlow("company_default") == null) {
+        if (webConfigDao.getWebConfigFlow("tenant_starlink_batavia") == null) {
             webConfigDao.insertOrUpdateWebConfig(
                 CompanyWebConfig(
-                    companyId = "company_default",
-                    siteTitle = "My Business",
-                    siteSubtitle = "Professional Field Services",
-                    deployedUrl = "https://quotebit.app/?slug=my-business"
+                    companyId = "tenant_starlink_batavia",
+                    siteTitle = "Skynet One",
+                    siteSubtitle = "Starlink & Satellite Installation - 701 Branson Dr, Batavia, IL 60510",
+                    deployedUrl = "https://quotebit.app/?slug=skynet-one"
                 )
             )
         }

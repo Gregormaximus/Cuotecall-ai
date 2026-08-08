@@ -32,6 +32,7 @@ import com.kuote.agent.ui.screens.JobDetailScreen
 import com.kuote.agent.ui.screens.ProfileScreen
 import com.kuote.agent.ui.screens.ScheduleScreen
 import com.kuote.agent.ui.screens.ServiceCatalogScreen
+import com.kuote.agent.ui.screens.SetupScreen
 import com.kuote.agent.ui.screens.SiteBuilderScreen
 import com.kuote.agent.ui.screens.SmsLogScreen
 import com.kuote.agent.ui.theme.KuoteTheme
@@ -88,7 +89,7 @@ class MainActivity : ComponentActivity() {
                             KuoteTopBar(
                                 isAgentActive = uiState.isAgentActive,
                                 onToggleAgent = { viewModel.toggleAgentActive(it) },
-                                onAccountClick = { viewModel.selectTab(5) }
+                                onAccountClick = { viewModel.selectTab(4) }
                             )
                         }
                     },
@@ -170,7 +171,20 @@ class MainActivity : ComponentActivity() {
                                     onSelectJob = { viewModel.selectJobForDetail(it) },
                                     onSyncCalendar = { viewModel.syncGoogleCalendar() }
                                 )
-                                2 -> SiteBuilderScreen(
+                                2 -> SetupScreen(
+                                    profile = uiState.companyProfile,
+                                    services = uiState.services,
+                                    isSmartPricingEnabled = uiState.isDynamicPricingEnabled,
+                                    onSaveProfile = { name, industry, sms, deposit, base, hq ->
+                                        viewModel.updateCompanyProfile(name, industry, sms, deposit, base, hq)
+                                    },
+                                    onAddServiceClick = { viewModel.setAddServiceDialogOpen(true) },
+                                    onDeleteService = { viewModel.deleteService(it) },
+                                    onUpdateService = { viewModel.updateService(it) },
+                                    onToggleSmartPricing = { viewModel.toggleDynamicPricing(it) },
+                                    onAutoSetup = { viewModel.runAiAutoSetup(it) }
+                                )
+                                3 -> SiteBuilderScreen(
                                     config = uiState.webConfig,
                                     companyProfile = uiState.companyProfile,
                                     services = uiState.services,
@@ -183,23 +197,7 @@ class MainActivity : ComponentActivity() {
                                         viewModel.bookCustomerJobFromMicroSite(name, phone, address, serviceName, deposit)
                                     }
                                 )
-                                3 -> ProfileScreen(
-                                    profile = uiState.companyProfile,
-                                    onSaveProfile = { name, industry, sms, deposit, base ->
-                                        viewModel.updateCompanyProfile(name, industry, sms, deposit, base)
-                                    }
-                                )
-                                4 -> ServiceCatalogScreen(
-                                    services = uiState.services,
-                                    isSmartPricingEnabled = uiState.isDynamicPricingEnabled,
-                                    onAddServiceClick = { viewModel.setAddServiceDialogOpen(true) },
-                                    onDeleteService = { viewModel.deleteService(it) },
-                                    onUpdateService = { viewModel.updateService(it) },
-                                    onToggleSmartPricing = { viewModel.toggleDynamicPricing(it) },
-                                    onAutoSetup = { viewModel.runAiAutoSetup(it) },
-                                    onApplyAiSuggestion = { viewModel.applyAiSuggestion(it) }
-                                )
-                                5 -> AccountScreen(
+                                4 -> AccountScreen(
                                     profile = uiState.companyProfile,
                                     revenueCatState = revenueCatState,
                                     userState = uiState.userState,
