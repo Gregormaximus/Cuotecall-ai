@@ -476,7 +476,7 @@ fun SetupScreen(
                         ) {
                             listOf(
                                 "Starlink Roof Mount ($200) & Cable Routing ($75)",
-                                "Towing ($110 Flatbed, $150 Heavy Duty)",
+                                "Starlink Roof Mount ($200), Cable Routing ($75)",
                                 "Plumbing ($125 Drain, $185 Pipe Repair)"
                             ).forEach { prompt ->
                                 Surface(

@@ -603,7 +603,7 @@ class AuthRepository(private val context: Context) {
                             depositAmount = doc.getDouble("depositAmount") ?: 50.0,
                             status = doc.getString("status") ?: "SENT_SMS",
                             timestamp = doc.getLong("timestamp") ?: System.currentTimeMillis(),
-                            serviceCategory = doc.getString("serviceCategory") ?: "Towing & Recovery",
+                            serviceCategory = doc.getString("serviceCategory") ?: "Starlink Installation & Recovery",
                             gpsLocation = doc.getString("gpsLocation")
                         )
                     } catch (e: Exception) {

@@ -105,7 +105,7 @@ fun ServiceCatalogScreen(
                         OutlinedTextField(
                             value = autoSetupText,
                             onValueChange = { autoSetupText = it },
-                            placeholder = { Text("Describe your trade (e.g. Towing, Plumbing)...") },
+                            placeholder = { Text("Describe your trade (e.g. Satellite, Networking)...") },
                             trailingIcon = {
                                 IconButton(onClick = {
                                     if (autoSetupText.isNotBlank()) {
@@ -119,7 +119,7 @@ fun ServiceCatalogScreen(
                             shape = RoundedCornerShape(10.dp)
                         )
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            listOf("Towing", "Mechanic", "Plumbing").forEach { preset ->
+                            listOf("Satellite", "Networking", "Plumbing").forEach { preset ->
                                 FilterChip(
                                     selected = autoSetupText.equals(preset, ignoreCase = true),
                                     onClick = {
@@ -255,7 +255,7 @@ fun ServiceCatalogCard(
     onDelete: () -> Unit,
     onUpdate: (FieldService) -> Unit = {}
 ) {
-    var isExpanded by remember { mutableStateOf(service.name.contains("Towing")) }
+    var isExpanded by remember { mutableStateOf(false) }
     var isEditing by remember { mutableStateOf(false) }
 
     var editName by remember(service) { mutableStateOf(service.name) }

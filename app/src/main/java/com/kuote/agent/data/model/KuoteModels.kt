@@ -72,7 +72,7 @@ object IndustryCategories {
 
     val PRESETS = listOf(
         // Emergency & Automotive
-        IndustryPreset("Emergency Towing", "Emergency", "local_shipping"),
+        IndustryPreset("Starlink Installation", "Satellite", "satellite_alt"),
         IndustryPreset("Locksmith", "Emergency", "vpn_key"),
         IndustryPreset("Roadside Assistance", "Emergency", "car_repair"),
         IndustryPreset("Mobile Mechanic", "Automotive", "build"),

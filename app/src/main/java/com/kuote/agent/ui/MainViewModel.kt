@@ -56,7 +56,7 @@ data class MainUiState(
     val isDynamicPricingEnabled: Boolean = false,
     val aiSuggestions: List<String> = listOf("Add 'Emergency Lockout' keyword to Locksmith", "Add Fuel Delivery service ($60)"),
     val searchQuery: String = "",
-    val sitePromptText: String = "Create a sleek dark cyan landing page for my Towing business with a big WebRTC Voice Call button.",
+    val sitePromptText: String = "Create a sleek dark cyan landing page for my Starlink Installation business with a big WebRTC Voice Call button.",
     val isVoiceRecording: Boolean = false,
     val toastMessage: String? = null,
     val userState: UserState = UserState(),
@@ -338,9 +338,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                             status = "ACTIVE"
                         )
                     )
-                } else if (q.contains("towing") || q.contains("tow")) {
-                    createdServices.add(FieldService(id = "s_" + UUID.randomUUID().toString().take(6), name = "Heavy Duty Towing", category = "TOWING", basePrice = 150.0, ratePerMile = 6.0, aiKeywords = listOf("Semi Towing", "Heavy Tow", "Winched"), status = "ACTIVE"))
-                    createdServices.add(FieldService(id = "s_" + UUID.randomUUID().toString().take(6), name = "Flatbed Transport", category = "TOWING", basePrice = 110.0, ratePerMile = 5.0, aiKeywords = listOf("Flatbed", "Exotic Car Tow", "AWD Towing"), status = "ACTIVE"))
+                } else if (q.contains("starlink") || q.contains("internet") || q.contains("satellite") || q.contains("tow")) {
+                    createdServices.add(FieldService(id = "s_" + UUID.randomUUID().toString().take(6), name = "Starlink Roof Mount", category = "SATELLITE", basePrice = 200.0, ratePerMile = 0.0, aiKeywords = listOf("Roof Mount", "Starlink Install", "Dish"), status = "ACTIVE"))
+                    createdServices.add(FieldService(id = "s_" + UUID.randomUUID().toString().take(6), name = "Cable Routing & Setup", category = "SATELLITE", basePrice = 75.0, ratePerMile = 0.0, aiKeywords = listOf("Cable Run", "Ethernet", "Network"), status = "ACTIVE"))
                 } else if (q.contains("mechanic") || q.contains("auto")) {
                     createdServices.add(FieldService(id = "s_" + UUID.randomUUID().toString().take(6), name = "Mobile Diagnostic Scan", category = "MECHANIC", basePrice = 89.0, ratePerMile = 1.5, aiKeywords = listOf("Check Engine", "OBD Scan", "No Start"), status = "ACTIVE"))
                     createdServices.add(FieldService(id = "s_" + UUID.randomUUID().toString().take(6), name = "Brake & Battery Swap", category = "MECHANIC", basePrice = 120.0, ratePerMile = 2.0, aiKeywords = listOf("Dead Battery", "Brake Noise", "Alternator"), status = "ACTIVE"))
