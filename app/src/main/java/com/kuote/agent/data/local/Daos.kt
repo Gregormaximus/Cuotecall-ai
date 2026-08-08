@@ -12,10 +12,10 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface CompanyProfileDao {
     @Query("SELECT * FROM company_profile WHERE id = :id LIMIT 1")
-    fun getCompanyProfileFlow(id: String = "company_default"): Flow<CompanyProfile?>
+    fun getCompanyProfileFlow(id: String = "tenant_starlink_batavia"): Flow<CompanyProfile?>
 
     @Query("SELECT * FROM company_profile WHERE id = :id LIMIT 1")
-    suspend fun getCompanyProfile(id: String = "company_default"): CompanyProfile?
+    suspend fun getCompanyProfile(id: String = "tenant_starlink_batavia"): CompanyProfile?
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertOrUpdateProfile(profile: CompanyProfile)
