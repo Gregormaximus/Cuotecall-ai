@@ -182,8 +182,7 @@ class MultimodalIntakeEngine {
         }
 
         val systemPrompt = """
-            You are an AI catalog intake parser for field service businesses.
-            Parse the user's input text, photo notes, or pricing link content and extract all service offerings.
+            You are a pricing catalog extractor. Parse the input text line-by-line and return a JSON array of objects.
             
             Extract a clean list of individual services with their exact titles and base prices.
             Do NOT split service titles on words like 'up to', 'per line', or 'each'.

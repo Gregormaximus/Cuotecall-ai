@@ -312,26 +312,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
         if (createdServices.isEmpty()) {
             val q = query.lowercase()
-            val priceMatches = Regex("""([A-Za-z0-9\s&/-]+?)\s*\(?\$?\s*(\d+(\.\d{1,2})?)\)?""").findAll(query).toList()
-            if (priceMatches.isNotEmpty()) {
-                for (m in priceMatches) {
-                    val serviceTitle = m.groupValues[1].trim().trim(':', '-', '$', ',', '(', ')')
-                    val priceVal = m.groupValues[2].toDoubleOrNull() ?: 95.0
-                    if (serviceTitle.length in 3..50 && !serviceTitle.equals("and", ignoreCase = true)) {
-                        createdServices.add(
-                            FieldService(
-                                id = "s_" + UUID.randomUUID().toString().take(6),
-                                name = serviceTitle.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() },
-                                category = "EXTRACTED",
-                                basePrice = priceVal,
-                                ratePerMile = 0.0,
-                                aiKeywords = listOf("Extracted", serviceTitle.take(15)),
-                                status = "ACTIVE"
-                            )
-                        )
-                    }
-                }
-            }
+        // Removed regex fallback to force Gemini extraction
 
             if (createdServices.isEmpty()) {
                 if (q.contains("starlink") || q.contains("satellite") || q.contains("skynet") || q.contains("mount") || q.contains("cable")) {
