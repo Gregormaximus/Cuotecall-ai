@@ -234,7 +234,7 @@ class MultimodalIntakeEngine {
                 val name = obj.optString("name", obj.optString("service_name", "Field Service"))
                 val price = obj.optDouble("price", obj.optDouble("estimated_total", 95.0))
                 val desc = obj.optString("description", obj.optString("customer_summary", ""))
-                if (name.length >= 3 && !invalidFragments.any { name.contains(it, ignoreCase = true) }) {
+                if (name.length >= 3 && !invalidFragments.any { name.equals(it, ignoreCase = true) }) {
                     results.add(ExtractedServiceItem(name = name, price = price, description = desc))
                 }
             }
