@@ -83,16 +83,16 @@
 
     // Default Fallback Configuration JSON
     const DEFAULT_CONFIG = {
-      companyName: "SKYNET TOWING & RECOVERY",
-      siteTitle: "SKYNET 24/7 ROAD ASSIST",
-      siteSubtitle: "Instant AI Dispatch & On-Demand Towing",
+      companyName: "SKYNET CONNECT",
+      siteTitle: "SKYNET MESH SETUP",
+      siteSubtitle: "Instant AI Dispatch & On-Demand Network Setup",
       themeColorHex: "#00E5FF",
       voiceCallButtonText: "Instant AI Dispatch / Live Voice",
-      voiceCallDescription: "Speak directly with our AI agent to describe your breakdown and request immediate help.",
+      voiceCallDescription: "Speak directly with our AI agent to describe your setup needs and request immediate help.",
       quickDepositFee: 50.00,
-      industry: "Towing & Roadside",
-      logoUrl: "https://images.unsplash.com/photo-1580273916550-e323be2ae537?w=150&auto=format&fit=crop&q=80",
-      systemInstruction: "You are an emergency service dispatcher for Skynet Towing & Recovery. Ask the caller for their breakdown details, location, and issue type. When you have enough details, call the 'create_stripe_deposit_link' tool to send them a $50 deposit checkout link."
+      industry: "Networking & Internet Setup",
+      logoUrl: "https://images.unsplash.com/photo-1544197150-b99a580bb7a8?w=150&auto=format&fit=crop&q=80",
+      systemInstruction: "You are an emergency service dispatcher for Skynet Connect. Ask the caller for their network setup details, location, and issue type. When you have enough details, call the 'create_stripe_deposit_link' tool to send them a $50 deposit checkout link."
     };
 
     function App() {
@@ -184,10 +184,17 @@
 
         if (slug) {
           slug = slug.toLowerCase().trim().replace(/[^a-z0-9-]+/g, "");
+          // Slug mapping
+          const SLUG_MAPPING = {
+            "skynet-one": "tenant_starlink_batavia"
+          };
+          if (SLUG_MAPPING[slug]) {
+            slug = SLUG_MAPPING[slug];
+          }
         }
 
         if (!slug || slug === "index" || slug === "index.html") {
-          slug = "apex-electric-pros";
+          slug = "tenant_starlink_batavia";
         }
 
         const formatTitleFromSlug = (s) => {
