@@ -522,8 +522,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             val services = repository.getServicesDirect()
 
             // Send instant simulated SMS
-            val slug = company.name.lowercase().trim().replace(Regex("[^a-z0-9]+"), "-").removeSuffix("-")
-            val smsMessage = "${company.autoSmsTemplate} https://quotecall.ai/$slug"
+            val slug = company.name.lowercase().trim().replace(Regex("[^a-z0-9]+"), "-").trim('-').ifBlank { "my-business" }
+            val smsMessage = "${company.autoSmsTemplate} https://quotebit.app/?slug=$slug"
             notificationHelper.sendInstantSms(phone, smsMessage)
 
             // Multimodal AI analysis
@@ -595,7 +595,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun purchaseSubscription() {
         revenueCatManager.purchaseProAccess {
-            _uiState.update { it.copy(isPaywallOpen = false, toastMessage = "Unlocked QuoteCall Pro Access!") }
+            _uiState.update { it.copy(isPaywallOpen = false, toastMessage = "Unlocked QuoteBit Pro Access!") }
         }
     }
 
@@ -689,7 +689,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
         viewModelScope.launch {
             val companyName = uiState.value.companyProfile.name
-            val msgText = customMessage ?: "[CallCatch AI Diagnostic] Gateway Test SMS sent from $companyName. Connectivity OK!"
+            val msgText = customMessage ?: "[QuoteBit AI Diagnostic] Gateway Test SMS sent from $companyName. Connectivity OK!"
             
             notificationHelper.sendInstantSms(
                 phoneNumber = phone,

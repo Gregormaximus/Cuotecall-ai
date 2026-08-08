@@ -51,13 +51,13 @@ fun KuoteTopBar(
                 ) {
                     Icon(
                         imageVector = Icons.Default.SmartToy,
-                        contentDescription = "QuoteCall Logo",
+                        contentDescription = "QuoteBit Logo",
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(22.dp)
                     )
                 }
                 Text(
-                    text = "QuoteCall AI",
+                    text = "QuoteBit",
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Black,
                     color = MaterialTheme.colorScheme.onSurface,

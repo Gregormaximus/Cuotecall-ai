@@ -58,7 +58,7 @@ class MicroSiteGeneratorEngine {
                 val responseText = response.candidates?.firstOrNull()?.content?.parts?.firstOrNull()?.text ?: ""
                 val parsed = parseJson(responseText)
                 if (parsed != null) {
-                    val slug = companyProfile.name.lowercase().trim().replace(Regex("[^a-z0-9]+"), "-").trim('-').ifBlank { "apex-electric-pros" }
+                    val slug = companyProfile.name.lowercase().trim().replace(Regex("[^a-z0-9]+"), "-").trim('-').ifBlank { "my-business" }
                     return@withContext CompanyWebConfig(
                         companyId = companyProfile.id,
                         siteTitle = parsed.site_title,
@@ -67,7 +67,7 @@ class MicroSiteGeneratorEngine {
                         voiceCallButtonText = parsed.voice_call_button_text,
                         voiceCallDescription = parsed.voice_call_description,
                         quickDepositFee = parsed.quick_deposit_fee,
-                        deployedUrl = "https://quotecall-ai.web.app/site/$slug"
+                        deployedUrl = "https://quotebit.app/?slug=$slug"
                     )
                 }
             } catch (e: Exception) {
@@ -76,7 +76,7 @@ class MicroSiteGeneratorEngine {
         }
 
         // Default or Fallback Site Config
-        val slug = companyProfile.name.lowercase().trim().replace(Regex("[^a-z0-9]+"), "-").trim('-').ifBlank { "apex-electric-pros" }
+        val slug = companyProfile.name.lowercase().trim().replace(Regex("[^a-z0-9]+"), "-").trim('-').ifBlank { "my-business" }
         CompanyWebConfig(
             companyId = companyProfile.id,
             siteTitle = companyProfile.name.uppercase(),
@@ -85,7 +85,7 @@ class MicroSiteGeneratorEngine {
             voiceCallButtonText = "Instant AI Dispatch",
             voiceCallDescription = "Speak directly with our AI to book an instant service",
             quickDepositFee = companyProfile.defaultDeposit,
-            deployedUrl = "https://quotecall-ai.web.app/site/$slug"
+            deployedUrl = "https://quotebit.app/?slug=$slug"
         )
     }
 

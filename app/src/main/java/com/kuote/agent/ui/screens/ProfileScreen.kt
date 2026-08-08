@@ -99,7 +99,7 @@ fun ProfileScreen(
                         OutlinedTextField(
                             value = companyName,
                             onValueChange = { companyName = it },
-                            placeholder = { Text("e.g. Apex Electric Pros", color = MaterialTheme.colorScheme.onSurfaceVariant) },
+                            placeholder = { Text("e.g. Quality Field Services", color = MaterialTheme.colorScheme.onSurfaceVariant) },
                             modifier = Modifier.fillMaxWidth(),
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedBorderColor = MaterialTheme.colorScheme.primary,

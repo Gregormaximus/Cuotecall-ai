@@ -101,8 +101,8 @@ class MissedCallReceiver : BroadcastReceiver() {
 
             val services = repository.getServicesDirect()
             val rawSlug = company.name.lowercase().trim().replace(Regex("[^a-z0-9]+"), "-").trim('-')
-            val slug = if (rawSlug.isBlank()) "apex-electric-pros" else rawSlug
-            val smsMessage = "${company.autoSmsTemplate} https://ais-dev-evjq6zhfgibldhq4rn7mw2-55455507008.us-west2.run.app/?slug=$slug"
+            val slug = if (rawSlug.isBlank()) "my-business" else rawSlug
+            val smsMessage = "${company.autoSmsTemplate} https://quotebit.app/?slug=$slug"
 
             android.util.Log.d("MissedCallReceiver", "Sending instant auto-SMS to $cleanNumber")
 

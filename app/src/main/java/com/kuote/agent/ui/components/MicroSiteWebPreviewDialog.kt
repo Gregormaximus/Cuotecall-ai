@@ -408,7 +408,7 @@ fun MicroSiteWebPreviewDialog(
                                 }
                             }
                             Spacer(modifier = Modifier.height(8.dp))
-                            Text("POWERED BY QUOTECALL AI WEBRTC AGENT", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text("POWERED BY QUOTEBIT WEBRTC AGENT", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
                 }

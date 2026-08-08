@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>QuoteCall AI - Hybrid Portal</title>
+  <title>QuoteBit - Hybrid Portal</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = { darkMode: 'class', theme: { extend: { colors: { glass: 'rgba(255, 255, 255, 0.05)' } } } }
@@ -30,10 +30,10 @@
   <script type="text/babel">
     const { useState, useEffect, useRef } = React;
     const firebaseConfig = {
-      apiKey: "AIzaSy_MOCK_FIREBASE_KEY_FOR_QUOTECALL_AI",
-      authDomain: "quotecall-ai.firebaseapp.com",
-      projectId: "quotecall-ai",
-      storageBucket: "quotecall-ai.appspot.com",
+      apiKey: "AIzaSy_MOCK_FIREBASE_KEY_FOR_QUOTEBIT",
+      authDomain: "quotebit-app.firebaseapp.com",
+      projectId: "quotebit-app",
+      storageBucket: "quotebit-app.appspot.com",
       messagingSenderId: "1234567890",
       appId: "1:1234567890:web:abcdef123456"
     };
@@ -79,7 +79,7 @@
     function App() {
       const [view, setView] = useState('client');
       const [config, setConfig] = useState({ 
-        siteTitle: "QuoteCall AI", 
+        siteTitle: "QuoteBit", 
         siteSubtitle: "Instant Field Service Dispatch" 
       });
 

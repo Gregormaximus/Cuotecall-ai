@@ -37,6 +37,9 @@ interface ServiceDao {
 
     @Delete
     suspend fun deleteService(service: FieldService)
+
+    @Query("DELETE FROM field_services")
+    suspend fun deleteAllServices()
 }
 
 @Dao
@@ -55,6 +58,9 @@ interface QuoteDao {
 
     @Query("DELETE FROM quotes WHERE id = :quoteId")
     suspend fun deleteQuote(quoteId: String)
+
+    @Query("DELETE FROM quotes")
+    suspend fun deleteAllQuotes()
 }
 
 @Dao
@@ -82,6 +88,9 @@ interface JobDao {
 
     @Query("DELETE FROM jobs WHERE id = :jobId")
     suspend fun deleteJob(jobId: String)
+
+    @Query("DELETE FROM jobs")
+    suspend fun deleteAllJobs()
 }
 
 @Dao

@@ -34,7 +34,7 @@ fun AuthScreen(
     onSignInWithEmail: (String, String) -> Unit,
     onSignUpWithEmail: (String, String) -> Unit
 ) {
-    var emailInput by remember { mutableStateOf("contractor@quotecall.ai") }
+    var emailInput by remember { mutableStateOf("") }
     var passwordInput by remember { mutableStateOf("") }
     var isSignUpMode by remember { mutableStateOf(false) }
 
@@ -79,7 +79,7 @@ fun AuthScreen(
                     ) {
                         Icon(
                             imageVector = Icons.Default.PhoneInTalk,
-                            contentDescription = "QuoteCall AI Logo",
+                            contentDescription = "QuoteBit Logo",
                             tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(34.dp)
                         )
@@ -87,7 +87,7 @@ fun AuthScreen(
                 }
 
                 Text(
-                    text = "QuoteCall AI",
+                    text = "QuoteBit",
                     fontSize = 28.sp,
                     fontWeight = FontWeight.Black,
                     color = MaterialTheme.colorScheme.onBackground

@@ -389,7 +389,7 @@ fun AccountScreen(
                                 modifier = Modifier.size(24.dp)
                             )
                             Text(
-                                text = "CallCatch Pro Subscription",
+                                text = "QuoteBit Pro Subscription",
                                 fontSize = 18.sp,
                                 fontWeight = FontWeight.Black,
                                 color = MaterialTheme.colorScheme.onSurface
@@ -430,7 +430,7 @@ fun AccountScreen(
                         shape = RoundedCornerShape(12.dp)
                     ) {
                         Text(
-                            text = if (revenueCatState.isProSubscribed) "Manage Pro Subscription ($9.99/mo)" else "Upgrade to CallCatch Pro ($9.99/mo)",
+                            text = if (revenueCatState.isProSubscribed) "Manage Pro Subscription ($9.99/mo)" else "Upgrade to QuoteBit Pro ($9.99/mo)",
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Bold
                         )

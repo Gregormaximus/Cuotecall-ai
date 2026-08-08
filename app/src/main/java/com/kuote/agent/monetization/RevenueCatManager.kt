@@ -11,7 +11,7 @@ data class RevenueCatState(
     val isTrialActive: Boolean = false,
     val monthlyPriceText: String = "$9.99/mo",
     val entitlementName: String = "pro_access",
-    val appUserId: String = "com.quotecall.agent.user",
+    val appUserId: String = "com.quotebit.agent.user",
     val isPaywallVisible: Boolean = false,
     val isProcessing: Boolean = false,
     val statusMessage: String? = null
@@ -25,10 +25,10 @@ class RevenueCatManager private constructor() {
     fun initialize(context: Context) {
         val apiKey = try { BuildConfig.REVENUECAT_API_KEY } catch (e: Exception) { "" }
         if (apiKey.isNotBlank() && apiKey != "goog_sample_key") {
-            // Purchases.configure(PurchasesConfiguration.Builder(context, apiKey).appUserID("com.quotecall.agent.user").build())
-            _state.value = _state.value.copy(statusMessage = "RevenueCat SDK Connected (com.quotecall.agent)")
+            // Purchases.configure(PurchasesConfiguration.Builder(context, apiKey).appUserID("com.quotebit.agent.user").build())
+            _state.value = _state.value.copy(statusMessage = "RevenueCat SDK Connected (com.quotebit.agent)")
         } else {
-            _state.value = _state.value.copy(statusMessage = "RevenueCat Sandbox Mode Active (com.quotecall.agent)")
+            _state.value = _state.value.copy(statusMessage = "RevenueCat Sandbox Mode Active (com.quotebit.agent)")
         }
     }
 
@@ -48,7 +48,7 @@ class RevenueCatManager private constructor() {
             isTrialActive = true,
             isPaywallVisible = false,
             isProcessing = false,
-            statusMessage = "QuoteCall Pro Active (7-Day Trial)"
+            statusMessage = "QuoteBit Pro Active (7-Day Trial)"
         )
         onSuccess()
     }

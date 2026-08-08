@@ -22,6 +22,6 @@ dependencyResolutionManagement {
   }
 }
 
-rootProject.name = "QuoteCall AI"
+rootProject.name = "QuoteBit"
 
 include(":app")

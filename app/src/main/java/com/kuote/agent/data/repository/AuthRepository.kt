@@ -36,7 +36,7 @@ import kotlinx.coroutines.flow.update
 data class UserState(
     val uid: String = "",
     val displayName: String = "Guest Contractor",
-    val email: String = "guest@quotecall.ai",
+    val email: String = "guest@quotebit.app",
     val photoUrl: String? = null,
     val isSignedIn: Boolean = false,
     val isAnonymous: Boolean = true
@@ -52,7 +52,7 @@ class AuthRepository(private val context: Context) {
             UserState(
                 uid = user.uid,
                 displayName = user.displayName ?: user.email?.substringBefore("@") ?: "Contractor Pro",
-                email = user.email ?: "contractor@quotecall.ai",
+                email = user.email ?: "contractor@quotebit.app",
                 photoUrl = user.photoUrl?.toString(),
                 isSignedIn = true,
                 isAnonymous = user.isAnonymous
@@ -69,7 +69,7 @@ class AuthRepository(private val context: Context) {
                     UserState(
                         uid = user.uid,
                         displayName = user.displayName ?: if (user.email.isNullOrEmpty()) "Contractor Pro" else user.email!!.substringBefore("@"),
-                        email = user.email ?: "contractor_${user.uid.take(6)}@quotecall.ai",
+                        email = user.email ?: "contractor_${user.uid.take(6)}@quotebit.app",
                         photoUrl = user.photoUrl?.toString(),
                         isSignedIn = true,
                         isAnonymous = user.isAnonymous
@@ -222,7 +222,7 @@ class AuthRepository(private val context: Context) {
             val state = UserState(
                 uid = user?.uid ?: UUID.randomUUID().toString(),
                 displayName = "Demo Contractor",
-                email = "demo.pro@quotecall.ai",
+                email = "demo.pro@quotebit.app",
                 isSignedIn = true,
                 isAnonymous = true
             )
@@ -233,8 +233,8 @@ class AuthRepository(private val context: Context) {
             Log.w("AuthRepository", "Anonymous Firebase Auth note: ${e.message}. Activating Guest session.", e)
             val state = UserState(
                 uid = "guest_${System.currentTimeMillis().toString().takeLast(6)}",
-                displayName = "Apex Pro Contractor",
-                email = "apex.contractor@quotecall.ai",
+                displayName = "Contractor Pro",
+                email = "contractor@quotebit.app",
                 isSignedIn = true,
                 isAnonymous = true
             )
@@ -342,11 +342,11 @@ class AuthRepository(private val context: Context) {
                 .await()
 
             val rawSlug = companyProfile.name.ifBlank { config.siteTitle }.lowercase().trim().replace(Regex("[^a-z0-9]+"), "-").trim('-')
-            val slug = if (rawSlug.isBlank()) "apex-electric-pros" else rawSlug
+            val slug = if (rawSlug.isBlank()) "my-business" else rawSlug
 
-            val systemInstruction = "You are CallCatch AI, the universal automated business assistant for ${companyProfile.name} (${companyProfile.industry}). You represent the business during missed calls or WebRTC voice sessions. Analyze customer needs, gather job details and address, quote prices, demand a $${config.quickDepositFee} security deposit, and close the deal with a Stripe Connect checkout link."
+            val systemInstruction = "You are QuoteBit AI, the universal automated business assistant for ${companyProfile.name} (${companyProfile.industry}). You represent the business during missed calls or WebRTC voice sessions. Analyze customer needs, gather job details and address, quote prices, demand a $${config.quickDepositFee} security deposit, and close the deal with a Stripe Connect checkout link."
 
-            val liveUrl = "https://quotecall-ai.web.app/site/$slug"
+            val liveUrl = "https://quotebit.app/?slug=$slug"
 
             val micrositeDoc = mapOf(
                 "slug" to slug,
@@ -594,54 +594,7 @@ class AuthRepository(private val context: Context) {
     }
 
     private fun getDefaultConversations(): List<ConversationLog> {
-        val now = System.currentTimeMillis()
-        return listOf(
-            ConversationLog(
-                id = "conv_1",
-                customerPhone = "+1 (555) 018-9281",
-                customerName = "Mark Stevens",
-                lastSmsText = "Hi Mark! Skynet AI caught your missed call. Here is your $220.00 quote link with $50.00 deposit.",
-                generatedQuoteAmount = 220.0,
-                depositAmount = 50.0,
-                status = "LOCATION_DISPATCHED",
-                timestamp = now - (12 * 60 * 1000),
-                serviceCategory = "Emergency Towing",
-                gpsLocation = "37.77492, -122.41942"
-            ),
-            ConversationLog(
-                id = "conv_2",
-                customerPhone = "+1 (555) 014-8832",
-                customerName = "Sarah Connor",
-                lastSmsText = "Hello Sarah! Skynet Towing sent instant quote #4928 ($180.0) with $50.0 Stripe deposit link.",
-                generatedQuoteAmount = 180.0,
-                depositAmount = 50.0,
-                status = "DEPOSIT_PAID",
-                timestamp = now - (45 * 60 * 1000),
-                serviceCategory = "Roadside Assistance"
-            ),
-            ConversationLog(
-                id = "conv_3",
-                customerPhone = "+1 (555) 012-7711",
-                customerName = "David Miller",
-                lastSmsText = "Auto-SMS: 'Thank you for calling Skynet Towing. View your instant estimate here: https://quotecall.ai/site/skynet-one'",
-                generatedQuoteAmount = 350.0,
-                depositAmount = 50.0,
-                status = "CLIENT_REPLIED",
-                timestamp = now - (2 * 3600 * 1000),
-                serviceCategory = "Vehicle Extraction"
-            ),
-            ConversationLog(
-                id = "conv_4",
-                customerPhone = "+1 (555) 019-3344",
-                customerName = "John Doe",
-                lastSmsText = "Missed call caught! SMS sent with direct link to book dispatch & secure $50 deposit.",
-                generatedQuoteAmount = 150.0,
-                depositAmount = 50.0,
-                status = "SENT_SMS",
-                timestamp = now - (4 * 3600 * 1000),
-                serviceCategory = "Tire Change"
-            )
-        )
+        return emptyList()
     }
 
     suspend fun addConversationLog(log: ConversationLog) = withContext(Dispatchers.IO) {

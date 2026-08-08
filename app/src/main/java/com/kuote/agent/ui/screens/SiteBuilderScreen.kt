@@ -385,7 +385,7 @@ fun SiteBuilderScreen(
                         }
 
                         Text(
-                            text = "POWERED BY QUOTECALL AI",
+                            text = "POWERED BY QUOTEBIT",
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,

@@ -6,14 +6,14 @@ import androidx.room.PrimaryKey
 @Entity(tableName = "company_profile")
 data class CompanyProfile(
     @PrimaryKey val id: String = "company_default",
-    val name: String = "Apex Electric Pros",
-    val industry: String = "Electrical",
-    val autoSmsTemplate: String = "Sorry we missed your call! I'm currently on a job. Reply with your service need and I'll get right back to you or tap: ",
+    val name: String = "My Business",
+    val industry: String = "Field Services",
+    val autoSmsTemplate: String = "Sorry we missed your call! I'm currently on a job. Reply with your service need or tap: ",
     val defaultDeposit: Double = 50.00,
-    val baseServiceFee: Double = 120.00,
-    val stripeAccountId: String = "acct_1N987654321",
+    val baseServiceFee: Double = 100.00,
+    val stripeAccountId: String = "",
     val isAgentActive: Boolean = true,
-    val phone: String = "+16304480230"
+    val phone: String = ""
 )
 
 @Entity(tableName = "field_services")
@@ -51,13 +51,13 @@ data class Quote(
 @Entity(tableName = "company_web_config")
 data class CompanyWebConfig(
     @PrimaryKey val companyId: String = "company_default",
-    val siteTitle: String = "TOW PRO EXPRESS",
-    val siteSubtitle: String = "24/7 Professional Roadside Assistance",
+    val siteTitle: String = "My Business",
+    val siteSubtitle: String = "Professional Field Services",
     val themeColorHex: String = "#00E5FF",
     val voiceCallButtonText: String = "Instant AI Dispatch",
-    val voiceCallDescription: String = "Speak directly with our AI to book a tow",
-    val quickDepositFee: Double = 75.00,
-    val deployedUrl: String = "https://ais-dev-evjq6zhfgibldhq4rn7mw2-55455507008.us-west2.run.app/?slug=apex-electric-pros"
+    val voiceCallDescription: String = "Speak directly with our AI dispatcher",
+    val quickDepositFee: Double = 50.00,
+    val deployedUrl: String = "https://quotebit.app/?slug=my-business"
 )
 
 data class IndustryPreset(
@@ -164,29 +164,22 @@ data class DayActivity(
 )
 
 data class AnalyticsStats(
-    val missedCallsHandled: Long = 28,
-    val autoSmsSent: Long = 28,
-    val microSiteClicks: Long = 21,
-    val ctrPercentage: Double = 75.0, // (microSiteClicks / autoSmsSent) * 100
-    val totalDepositsCollected: Double = 1850.00,
-    val momGrowthPercentage: Double = 18.5,
+    val missedCallsHandled: Long = 0,
+    val autoSmsSent: Long = 0,
+    val microSiteClicks: Long = 0,
+    val ctrPercentage: Double = 0.0,
+    val totalDepositsCollected: Double = 0.00,
+    val momGrowthPercentage: Double = 0.0,
     val weeklyOverview: List<DayActivity> = listOf(
-        DayActivity("Mon", missedCalls = 4, smsSent = 4, siteClicks = 3, depositsAmount = 200.0),
-        DayActivity("Tue", missedCalls = 5, smsSent = 5, siteClicks = 4, depositsAmount = 350.0),
-        DayActivity("Wed", missedCalls = 3, smsSent = 3, siteClicks = 2, depositsAmount = 150.0),
-        DayActivity("Thu", missedCalls = 6, smsSent = 6, siteClicks = 5, depositsAmount = 400.0),
-        DayActivity("Fri", missedCalls = 5, smsSent = 5, siteClicks = 4, depositsAmount = 350.0),
-        DayActivity("Sat", missedCalls = 3, smsSent = 3, siteClicks = 2, depositsAmount = 250.0),
-        DayActivity("Sun", missedCalls = 2, smsSent = 2, siteClicks = 1, depositsAmount = 150.0)
+        DayActivity("Mon"),
+        DayActivity("Tue"),
+        DayActivity("Wed"),
+        DayActivity("Thu"),
+        DayActivity("Fri"),
+        DayActivity("Sat"),
+        DayActivity("Sun")
     ),
-    val monthlyRevenueTrend: List<MonthRevenue> = listOf(
-        MonthRevenue("2026-03", "Mar", depositRevenue = 1100.0, totalRevenue = 3800.0, totalJobsCount = 11),
-        MonthRevenue("2026-04", "Apr", depositRevenue = 1350.0, totalRevenue = 4500.0, totalJobsCount = 14),
-        MonthRevenue("2026-05", "May", depositRevenue = 1500.0, totalRevenue = 5200.0, totalJobsCount = 17),
-        MonthRevenue("2026-06", "Jun", depositRevenue = 1650.0, totalRevenue = 6100.0, totalJobsCount = 19),
-        MonthRevenue("2026-07", "Jul", depositRevenue = 1850.0, totalRevenue = 6900.0, totalJobsCount = 22),
-        MonthRevenue("2026-08", "Aug", depositRevenue = 2250.0, totalRevenue = 8150.0, totalJobsCount = 27)
-    )
+    val monthlyRevenueTrend: List<MonthRevenue> = emptyList()
 )
 
 data class ConversationLog(

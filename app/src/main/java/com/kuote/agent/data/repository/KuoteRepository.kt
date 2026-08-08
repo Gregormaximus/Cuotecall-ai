@@ -31,113 +31,37 @@ class KuoteRepository(context: Context) {
     val smsLogsFlow: Flow<List<SmsLog>> = smsLogDao.getAllSmsLogsFlow()
 
     suspend fun initializeDefaultDataIfEmpty() = withContext(Dispatchers.IO) {
-        if (profileDao.getCompanyProfile() == null) {
+        val currentProfile = profileDao.getCompanyProfile()
+        if (currentProfile == null || currentProfile.name == "Apex Electric Pros") {
             val defaultProfile = CompanyProfile(
                 id = "company_default",
-                name = "Apex Electric Pros",
-                industry = "Electrical",
-                autoSmsTemplate = "Sorry we missed your call! I'm currently on a job. Reply with your service need and I'll get right back to you or tap: ",
+                name = "My Business",
+                industry = "Field Services",
+                autoSmsTemplate = "Sorry we missed your call! I'm currently on a job. Reply with your service need or tap: ",
                 defaultDeposit = 50.00,
-                baseServiceFee = 120.00,
-                stripeAccountId = "acct_1N987654321",
-                isAgentActive = true
+                baseServiceFee = 100.00,
+                stripeAccountId = "",
+                isAgentActive = true,
+                phone = ""
             )
             profileDao.insertOrUpdateProfile(defaultProfile)
+            
+            // Purge legacy sample/dummy records for a fresh clean slate
+            jobDao.deleteAllJobs()
+            quoteDao.deleteAllQuotes()
+            smsLogDao.clearAllSmsLogs()
+            serviceDao.deleteAllServices()
         }
 
-        if (serviceDao.getAllServices().isEmpty()) {
-            val defaultServices = listOf(
-                FieldService(
-                    id = "s_towing",
-                    name = "Emergency Towing",
-                    category = "TOWING",
-                    basePrice = 85.00,
-                    ratePerMile = 4.50,
-                    aiKeywords = listOf("Flat Tire", "Breakdown", "Accident Recovery"),
-                    status = "ACTIVE"
-                ),
-                FieldService(
-                    id = "s_lockout",
-                    name = "Lockout Service",
-                    category = "LOCKSMITH",
-                    basePrice = 75.00,
-                    ratePerMile = 0.0,
-                    aiKeywords = listOf("Locked Out", "Lost Keys", "Door Unlock"),
-                    status = "ACTIVE"
-                ),
-                FieldService(
-                    id = "s_fuel",
-                    name = "Fuel Delivery",
-                    category = "ROADSIDE",
-                    basePrice = 45.00,
-                    ratePerMile = 2.00,
-                    aiKeywords = listOf("Out of Gas", "Gasoline", "Fuel"),
-                    status = "LIMITED_SUPPLY"
+        if (webConfigDao.getWebConfigFlow("company_default") == null) {
+            webConfigDao.insertOrUpdateWebConfig(
+                CompanyWebConfig(
+                    companyId = "company_default",
+                    siteTitle = "My Business",
+                    siteSubtitle = "Professional Field Services",
+                    deployedUrl = "https://quotebit.app/?slug=my-business"
                 )
             )
-            serviceDao.insertServices(defaultServices)
-        }
-
-        val defaultJobs = listOf(
-            Job(
-                id = "job_101",
-                customerName = "Marcus Vance",
-                customerPhone = "+1 (555) 382-9102",
-                customerLocation = "1428 Elm Street, Suite 4",
-                serviceTitle = "Main Circuit Panel Breaker Replacement",
-                serviceCategory = "ELECTRICAL",
-                status = JobStatus.DEPOSIT_PAID,
-                estimatedTotal = 380.00,
-                depositAmount = 50.00,
-                depositPaymentIntentId = "pi_dep_9812739182",
-                savedPaymentMethodId = "pm_card_visa_tok772",
-                notes = "Customer reported main circuit breaker tripping repeatedly under heavy load."
-            ),
-            Job(
-                id = "job_102",
-                customerName = "Sarah Jenkins",
-                customerPhone = "+1 (555) 721-4491",
-                customerLocation = "890 Bayview Blvd",
-                serviceTitle = "EV Charger Outlet Installation (50A)",
-                serviceCategory = "ELECTRICAL",
-                status = JobStatus.IN_PROGRESS,
-                estimatedTotal = 520.00,
-                depositAmount = 50.00,
-                depositPaymentIntentId = "pi_dep_882371239",
-                savedPaymentMethodId = "pm_card_mc_tok881",
-                notes = "NEMA 14-50 dedicated outlet install in home garage."
-            )
-        )
-        for (job in defaultJobs) {
-            if (jobDao.getJobById(job.id) == null) {
-                jobDao.insertOrUpdateJob(job)
-            }
-        }
-
-        // Default initial SMS logs
-        val sampleSmsLogs = listOf(
-            SmsLog(
-                id = "sms_sample_1",
-                recipientPhone = "+1 (555) 382-9102",
-                messageText = "Sorry we missed your call! I'm currently on a job. Reply with your service need or tap: https://ais-dev-evjq6zhfgibldhq4rn7mw2-55455507008.us-west2.run.app/?slug=apex-electric-pros",
-                timestampMillis = System.currentTimeMillis() - 15 * 60 * 1000,
-                status = "DELIVERED",
-                triggerType = "MISSED_CALL_AUTO",
-                relatedQuoteId = "q_initial_1"
-            ),
-            SmsLog(
-                id = "sms_sample_2",
-                recipientPhone = "+1 (630) 448-0230",
-                messageText = "[CallCatch Diagnostic] Gateway Connectivity Verified. System ready for instant auto-replies.",
-                timestampMillis = System.currentTimeMillis() - 60 * 60 * 1000,
-                status = "DELIVERED",
-                triggerType = "TEST_SMS"
-            )
-        )
-        for (log in sampleSmsLogs) {
-            if (smsLogDao.getSmsLogById(log.id) == null) {
-                smsLogDao.insertSmsLog(log)
-            }
         }
     }
 

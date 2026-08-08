@@ -81,7 +81,7 @@ fun RevenueCatPaywallDialog(
                     Spacer(modifier = Modifier.height(16.dp))
 
                     Text(
-                        text = "QuoteCall Pro",
+                        text = "QuoteBit Pro",
                         fontSize = 32.sp,
                         fontWeight = FontWeight.Black,
                         color = FastingoTextPrimary

@@ -4,7 +4,7 @@ import androidx.room.Entity
 import androidx.room.PrimaryKey
 
 /**
- * Job entity representing field service jobs tracked in QuoteCall AI.
+ * Job entity representing field service jobs tracked in QuoteBit.
  * Handles full 2-step Stripe Connect lifecycle:
  * 1. Upfront Deposit ($50 with 4.0% platform fee & off_session card tokenization)
  * 2. Final Balance Settlement (1.5% fee with 5 payment methods: Saved Card, Dynamic QR/Link, Tap to Pay NFC, Manual Keyed, External)

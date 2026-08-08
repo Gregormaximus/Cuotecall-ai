@@ -73,7 +73,7 @@ class StripeRepository(private val context: Context) {
         val balance = job.balanceDue
         val platformFee = balance * 0.015 // 1.5% Fee
         val piId = "pi_bal_${System.currentTimeMillis().toString().takeLast(8)}"
-        val receipt = "https://pay.stripe.com/receipts/quotecall_$piId"
+        val receipt = "https://pay.stripe.com/receipts/quotebit_$piId"
 
         StripeSettlementResult(
             success = true,
@@ -92,7 +92,7 @@ class StripeRepository(private val context: Context) {
         stripeAccountId: String
     ): String = withContext(Dispatchers.IO) {
         val slug = job.id.takeLast(6)
-        "https://quotecall.ai/pay/checkout_$slug?amount=${job.balanceDue}&fee=1.5"
+        "https://quotebit.app/pay/checkout_$slug?amount=${job.balanceDue}&fee=1.5"
     }
 
     /**
@@ -104,7 +104,7 @@ class StripeRepository(private val context: Context) {
     ): StripeSettlementResult = withContext(Dispatchers.IO) {
         delay(1200) // Simulate NFC contact & card read
         val piId = "pi_nfc_${System.currentTimeMillis().toString().takeLast(8)}"
-        val receipt = "https://pay.stripe.com/receipts/quotecall_$piId"
+        val receipt = "https://pay.stripe.com/receipts/quotebit_$piId"
 
         StripeSettlementResult(
             success = true,
@@ -128,7 +128,7 @@ class StripeRepository(private val context: Context) {
     ): StripeSettlementResult = withContext(Dispatchers.IO) {
         delay(1100)
         val piId = "pi_keyed_${System.currentTimeMillis().toString().takeLast(8)}"
-        val receipt = "https://pay.stripe.com/receipts/quotecall_$piId"
+        val receipt = "https://pay.stripe.com/receipts/quotebit_$piId"
 
         StripeSettlementResult(
             success = true,
@@ -148,7 +148,7 @@ class StripeRepository(private val context: Context) {
         externalMethod: String
     ): StripeSettlementResult = withContext(Dispatchers.IO) {
         delay(500)
-        val receipt = "https://quotecall.ai/receipts/ext_${job.id}"
+        val receipt = "https://quotebit.app/receipts/ext_${job.id}"
 
         StripeSettlementResult(
             success = true,
