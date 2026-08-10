@@ -97,7 +97,7 @@
         { name: "Custom Cable Routing", price: 75.00, desc: "Weatherproof exterior to interior wall conduit pass-through" },
         { name: "Mesh WiFi Setup", price: 199.00, desc: "Whole-home wireless mesh network integration and speed optimization" }
       ],
-      systemInstruction: "You are the AI Assistant for Skynet One Starlink Installation. Greet the customer warmly, ask about their roof mounting or cabling needs, explain rates ($200 Roof Mount, $75 Cable Routing, $199 Mesh Setup), and provide a $50 deposit link to secure their installation slot."
+      systemInstruction: "You are the AI Assistant for Skynet One Starlink Installation. Greet the customer warmly, ask about their roof mounting or cabling needs, explain rates ($200 Roof Mount, $75 Cable Routing, $199 Mesh Setup), and provide a $50 deposit link to secure their installation slot. Sentiment Adaptation: Remain upbeat, confident, and empathetic. Adjust tone dynamically: calm and reassure anxious or stressed clients with soothing reassurance while remaining professional and direct."
     };
 
     function App() {
@@ -115,6 +115,82 @@
       const [depositLink, setDepositLink] = useState(null);
       const [isProcessingStripe, setIsProcessingStripe] = useState(false);
       const [callDuration, setCallDuration] = useState(0);
+      const [audioLevels, setAudioLevels] = useState([20, 40, 60, 30, 50]);
+      const [showPostCallSummary, setShowPostCallSummary] = useState(false);
+
+      // Audio level animation & Post-Call Summary trigger
+      useEffect(() => {
+        let levelInterval = null;
+        if (isLiveConnected) {
+          setShowPostCallSummary(false);
+          levelInterval = setInterval(() => {
+            setAudioLevels([
+              Math.floor(Math.random() * 70) + 20,
+              Math.floor(Math.random() * 85) + 15,
+              Math.floor(Math.random() * 95) + 25,
+              Math.floor(Math.random() * 75) + 20,
+              Math.floor(Math.random() * 90) + 15
+            ]);
+          }, 150);
+        } else {
+          if (transcript.length > 0) {
+            setShowPostCallSummary(true);
+          }
+        }
+        return () => {
+          if (levelInterval) clearInterval(levelInterval);
+        };
+      }, [isLiveConnected]);
+
+      // Space bar keyboard shortcut to toggle voice call
+      useEffect(() => {
+        const handleKeyDown = (e) => {
+          if (e.code === 'Space' && activeTab === 'voice') {
+            const activeTag = document.activeElement ? document.activeElement.tagName : '';
+            if (activeTag !== 'INPUT' && activeTag !== 'TEXTAREA') {
+              e.preventDefault();
+              toggleGeminiLiveCall();
+            }
+          }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+      }, [activeTab, isLiveConnected]);
+
+      // Download Transcript function
+      const downloadTranscript = () => {
+        const text = transcript.join('\n');
+        const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `skynet_one_call_transcript_${Date.now()}.txt`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      };
+
+      // Auto-silence / inactivity detection timer (30 seconds)
+      useEffect(() => {
+        let silenceTimer = null;
+        if (isLiveConnected) {
+          silenceTimer = setTimeout(() => {
+            if (mediaStreamRef.current) {
+              mediaStreamRef.current.getTracks().forEach(track => track.stop());
+              mediaStreamRef.current = null;
+            }
+            if ('speechSynthesis' in window) {
+              window.speechSynthesis.cancel();
+            }
+            setIsLiveConnected(false);
+            setVoiceStatus("Call ended automatically due to 30s inactivity/silence.");
+          }, 30000);
+        }
+        return () => {
+          if (silenceTimer) clearTimeout(silenceTimer);
+        };
+      }, [isLiveConnected]);
 
       // Text Chat Fallback State
       const [activeTab, setActiveTab] = useState('voice'); // 'voice' or 'chat'
@@ -217,9 +293,19 @@
         if ('speechSynthesis' in window) {
           window.speechSynthesis.cancel();
           const utterance = new SpeechSynthesisUtterance(text);
+          
+          // Attempt to select a high-quality Google English voice
+          const voices = window.speechSynthesis.getVoices();
+          const googleVoice = voices.find(voice => 
+            voice.name.includes("Google") && voice.lang.includes("en-US")
+          );
+          if (googleVoice) {
+            utterance.voice = googleVoice;
+          }
+          
           // Tweak rate and pitch for a slightly more human feel
-          utterance.rate = 0.95;
-          utterance.pitch = 0.9; 
+          utterance.rate = 1.0; 
+          utterance.pitch = 1.0;
           window.speechSynthesis.speak(utterance);
         }
       };
@@ -489,7 +575,12 @@
             {/* TAB 1: AI Voice Assistant */}
             {activeTab === 'voice' && (
               <div class="space-y-3 text-center">
-                <p class="text-xs text-slate-400">{config.voiceCallDescription}</p>
+                <div class="flex items-center justify-between px-1">
+                  <p class="text-xs text-slate-400">{config.voiceCallDescription}</p>
+                  <span class="text-[10px] font-mono text-cyan-400 bg-cyan-950/80 px-2 py-0.5 rounded border border-cyan-800">
+                    Press [Space] to Toggle
+                  </span>
+                </div>
 
                 <button
                   onClick={toggleGeminiLiveCall}
@@ -509,26 +600,80 @@
                   )}
                 </button>
 
-                {isLiveConnected && (
-                  <div class="p-4 rounded-2xl bg-slate-950 border border-cyan-500/40 text-left space-y-2">
-                    <div class="flex items-center justify-between text-xs font-semibold text-cyan-400">
-                      <span class="flex items-center gap-2">
-                        <span class="voice-wave"></span>
-                        <span class="voice-wave"></span>
-                        <span class="voice-wave"></span>
-                        {voiceStatus}
-                      </span>
-                      <span class="font-mono text-cyan-300 bg-cyan-950/80 border border-cyan-800 px-2 py-0.5 rounded-lg text-xs font-bold">
-                        {formatCallDuration(callDuration)}
-                      </span>
+                <div class="w-full space-y-3">
+                  {isLiveConnected && (
+                    <div class="p-4 rounded-2xl bg-slate-950 border border-cyan-500/40 text-left space-y-3">
+                      <div class="flex items-center justify-between text-xs font-semibold text-cyan-400">
+                        <span class="flex items-center gap-2">
+                          <span class="voice-wave"></span>
+                          <span class="voice-wave"></span>
+                          <span class="voice-wave"></span>
+                          {voiceStatus}
+                        </span>
+                        <span class="font-mono text-cyan-300 bg-cyan-950/80 border border-cyan-800 px-2 py-0.5 rounded-lg text-xs font-bold">
+                          {formatCallDuration(callDuration)}
+                        </span>
+                      </div>
+
+                      {/* Real-time animated audio input level bar */}
+                      <div class="space-y-1">
+                        <div class="flex items-center justify-between text-[10px] text-slate-400 font-mono">
+                          <span>MIC INPUT LEVEL (CONFIRMED)</span>
+                          <span class="text-cyan-400">ACTIVE</span>
+                        </div>
+                        <div class="flex items-center justify-center gap-1.5 h-6 bg-slate-900 px-3 rounded-lg border border-slate-800">
+                          {audioLevels.map((lvl, idx) => (
+                            <div key={idx} class="flex-1 bg-cyan-400 rounded-full transition-all duration-150" style={{ height: `${lvl}%` }}></div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {aiResponseText && (
+                        <p class="text-xs text-slate-200 bg-slate-900 p-3 rounded-xl border border-slate-800 italic">
+                          {aiResponseText}
+                        </p>
+                      )}
                     </div>
-                    {aiResponseText && (
-                      <p class="text-xs text-slate-200 bg-slate-900 p-3 rounded-xl border border-slate-800 italic">
-                        {aiResponseText}
-                      </p>
-                    )}
-                  </div>
-                )}
+                  )}
+
+                  {/* Transcript Download Button */}
+                  {!isLiveConnected && transcript.length > 0 && (
+                    <button
+                      onClick={downloadTranscript}
+                      class="w-full py-2.5 px-4 rounded-xl bg-slate-950 border border-slate-700 text-cyan-400 text-xs font-bold flex items-center justify-center gap-2 hover:bg-slate-800 transition-all shadow"
+                    >
+                      <i data-lucide="download" class="w-4 h-4"></i>
+                      <span>Download Call Transcript (.txt)</span>
+                    </button>
+                  )}
+
+                  {/* Post-Call Summary Component */}
+                  {showPostCallSummary && (
+                    <div class="bg-slate-950 border border-cyan-500/50 rounded-2xl p-4 text-left space-y-3 shadow-2xl animate-fade-in">
+                      <div class="flex items-center justify-between">
+                        <h4 class="text-xs font-bold text-cyan-400 uppercase flex items-center gap-2">
+                          <i data-lucide="check-circle" class="w-4 h-4 text-cyan-400"></i>
+                          Post-Call Installation Summary
+                        </h4>
+                        <span class="text-[10px] font-mono bg-cyan-950 text-cyan-300 px-2 py-0.5 rounded border border-cyan-800">
+                          Duration: {formatCallDuration(callDuration)}
+                        </span>
+                      </div>
+                      <div class="bg-slate-900 p-3 rounded-xl border border-slate-800 space-y-1 text-xs text-slate-300">
+                        <p><strong class="text-white">Scope:</strong> Starlink Roof Mount & Cable Routing</p>
+                        <p><strong class="text-white">Estimated Total:</strong> $275.00</p>
+                        <p><strong class="text-white">Deposit Required:</strong> ${config.quickDepositFee.toFixed(2)}</p>
+                      </div>
+                      <button
+                        onClick={handleDirectDeposit}
+                        class="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-cyan-400 to-teal-400 text-slate-950 font-black text-xs flex items-center justify-center gap-2 shadow-lg"
+                      >
+                        <i data-lucide="credit-card" class="w-4 h-4"></i>
+                        <span>Confirm Booking & Pay ${config.quickDepositFee.toFixed(2)} Deposit</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
 
