@@ -182,6 +182,132 @@
       const [audioLevels, setAudioLevels] = useState([20, 40, 60, 30, 50]);
       const [showPostCallSummary, setShowPostCallSummary] = useState(false);
 
+      // Text Chat Fallback State
+      const [activeTab, setActiveTab] = useState('voice'); // 'voice' or 'chat'
+      const [chatInput, setChatInput] = useState('');
+      const [chatMessages, setChatMessages] = useState([
+        { sender: 'AI', text: 'Hello! Thanks for reaching out to Skynet One. How can I help with your Starlink or networking setup today?' }
+      ]);
+      const [isAiTyping, setIsAiTyping] = useState(false);
+
+      // GPS Location State
+      const [gpsLocation, setGpsLocation] = useState(null);
+      const [isGettingGps, setIsGettingGps] = useState(false);
+      const [gpsStatusMessage, setGpsStatusMessage] = useState("");
+      const [copiedGpsLink, setCopiedGpsLink] = useState(false);
+
+      // Dispatch Timeline State
+      const [dispatchStage, setDispatchStage] = useState(0); // 0: Requested, 1: Tech Assigned, 2: En Route, 3: Arrived
+      const [smsNotification, setSmsNotification] = useState(null);
+
+      const mediaStreamRef = useRef(null);
+      const voiceTimerRef = useRef(null);
+      const isLiveConnectedRef = useRef(false);
+      const selectedVoiceNameRef = useRef(null);
+      const recognitionRef = useRef(null);
+      const isSpeakingRef = useRef(false);
+
+      // Safe Money Formatter Helper (Prevents crash when rendering prices/fees)
+      const formatMoney = (val) => {
+        if (typeof val === 'number') return val.toFixed(2);
+        const parsed = parseFloat(val);
+        return isNaN(parsed) ? '50.00' : parsed.toFixed(2);
+      };
+
+      // Get & Lock in Preferred SpeechSynthesis Voice by Name (Ensures Warm Human Tone Consistency)
+      const getPreferredVoice = () => {
+        if (typeof window === 'undefined' || !('speechSynthesis' in window)) return null;
+        const voices = window.speechSynthesis.getVoices();
+        if (!voices || voices.length === 0) return null;
+
+        if (selectedVoiceNameRef.current) {
+          const match = voices.find(v => v && v.name === selectedVoiceNameRef.current);
+          if (match) return match;
+        }
+
+        const preferred = voices.find(v => 
+          v && v.name && (
+            v.name.includes("Google US English") || 
+            v.name.includes("Google") || 
+            v.name.includes("Natural") || 
+            v.name.includes("Samantha") || 
+            v.name.includes("Microsoft Zira") ||
+            v.name.includes("Microsoft David") ||
+            v.name.includes("English")
+          ) && v.lang && v.lang.includes("en")
+        ) || voices[0];
+
+        if (preferred) {
+          selectedVoiceNameRef.current = preferred.name;
+        }
+        return preferred;
+      };
+
+      // Central Conversational AI Response Engine
+      const generateAiResponse = (userMsg) => {
+        const lowerMsg = userMsg.toLowerCase();
+        let isPolish = /[ąćęłńóśźż]|tak|nie|dzięki|dobrze|dystans|montaż|cena|koszt|instalacja|rezerwacja|proszę/i.test(lowerMsg);
+
+        const isAffirmative = /^(yes|tak|sure|ok|okay|yep|yeah|book|confirm|jasne|pewnie|poproszę|chcę|zróbmy to|dobrze)$/i.test(lowerMsg.trim()) ||
+                              lowerMsg.includes("yes") || lowerMsg.includes("tak") || lowerMsg.includes("reserve") || lowerMsg.includes("rezerwuj") || lowerMsg.includes("deposit") || lowerMsg.includes("potwierdzam");
+
+        const matchedServices = (config.services || []).filter(s => {
+          const sName = s.name.toLowerCase();
+          return lowerMsg.split(' ').some(word => word.length > 2 && sName.includes(word));
+        });
+
+        let aiReply = "";
+        let bookingTriggered = false;
+        let serviceName = "Starlink Installation";
+
+        if (isAffirmative) {
+          bookingTriggered = true;
+          if (isPolish) {
+            aiReply = "Wspaniale! Zarezerwowałem dla Ciebie najbliższy dostępny termin instalacji Starlink. Wystarczy wpłacić depozyt 50$ przyciskiem Stripe poniżej, aby certyfikowany technik Skynet One przyjechał pod Twój adres!";
+          } else {
+            aiReply = "Excellent! I have reserved the next available Starlink installation slot for you. Simply submit the $50 deposit using the Stripe button below to confirm your certified technician!";
+          }
+        } else if (matchedServices.length > 0) {
+          serviceName = matchedServices[0].name;
+          const serviceListStr = matchedServices.map(s => `${s.name}: $${s.price.toFixed(2)}`).join(", ");
+          if (isPolish) {
+            aiReply = `Dla wybranej usługi: ${serviceListStr}. Wygenerowałem link do wpłaty depozytu 50$, aby zarezerwować termin!`;
+          } else {
+            aiReply = `For your request: ${serviceListStr}. I generated a $50 deposit booking link right below to lock in your certified technician slot!`;
+          }
+          bookingTriggered = true;
+        } else if (lowerMsg.includes("roof") || lowerMsg.includes("dach") || lowerMsg.includes("montaż")) {
+          bookingTriggered = true;
+          if (isPolish) {
+            aiReply = "Montaż Starlink na dachu wynosi $200.00, a ukryte prowadzenie kabli od $75. Wygenerowałem rezerwację z depozytem $50!";
+          } else {
+            aiReply = "Our Starlink Roof Mount Installation is $200.00, and Wall Fishing Cable Routing starts at $75. I generated a $50 deposit link to lock in your technician!";
+          }
+        } else if (lowerMsg.includes("pole") || lowerMsg.includes("słupek") || lowerMsg.includes("ground")) {
+          bookingTriggered = true;
+          serviceName = "Ground Pole Mount";
+          if (isPolish) {
+            aiReply = "Montaż na słupku ziemnym wynosi $199.00. Obejmuje osadzenie słupka i uszczelnienie kabli. Zarezerwuj termin depozytem $50!";
+          } else {
+            aiReply = "Our Ground Pole Mount Installation is $199.00. I generated a $50 deposit link to lock in your appointment slot!";
+          }
+        } else if (lowerMsg.includes("price") || lowerMsg.includes("cost") || lowerMsg.includes("cennik") || lowerMsg.includes("ile")) {
+          if (isPolish) {
+            aiReply = "Cennik Skynet One: Montaż na dachu $200, Słupek w ziemi $199, Prowadzenie kabli od $75, Wi-Fi Mesh $80. Czy chcesz zarezerwować termin z depozytem 50$?";
+          } else {
+            aiReply = "Skynet One Pricing: Roof Mount is $200, Ground Pole Mount is $199, Cable Routing is $75, and Mesh Wi-Fi is $80. Would you like to lock in a slot with a $50 deposit?";
+          }
+        } else {
+          if (isPolish) {
+            aiReply = "Dziękuję! Jestem asystentem Skynet One. Oferujemy profesjonalny montaż Starlink i sieci. Wyjaśnij co potrzebujesz lub powiedz 'TAK', aby zarezerwować termin z depozytem $50!";
+          } else {
+            aiReply = "Thank you! I am the Skynet One Voice Assistant. We provide professional Starlink installation and cable routing. Tell me what setup you need or say 'YES' to book with a $50 deposit!";
+          }
+        }
+
+        return { aiReply, bookingTriggered, serviceName };
+      };
+
       // Audio level animation & Post-Call Summary trigger
       useEffect(() => {
         let levelInterval = null;
@@ -256,25 +382,10 @@
         };
       }, [isLiveConnected]);
 
-      // Text Chat Fallback State
-      const [activeTab, setActiveTab] = useState('voice'); // 'voice' or 'chat'
-      const [chatInput, setChatInput] = useState('');
-      const [chatMessages, setChatMessages] = useState([
-        { sender: 'AI', text: 'Hello! Thanks for reaching out to Skynet One. How can I help with your Starlink or networking setup today?' }
-      ]);
-      const [isAiTyping, setIsAiTyping] = useState(false);
-
-      // GPS Location State
-      const [gpsLocation, setGpsLocation] = useState(null);
-      const [isGettingGps, setIsGettingGps] = useState(false);
-      const [gpsStatusMessage, setGpsStatusMessage] = useState("");
-      const [copiedGpsLink, setCopiedGpsLink] = useState(false);
-
-      // Dispatch Timeline State
-      const [dispatchStage, setDispatchStage] = useState(0); // 0: Requested, 1: Tech Assigned, 2: En Route, 3: Arrived
-      const [smsNotification, setSmsNotification] = useState(null);
-
-      const mediaStreamRef = useRef(null);
+      // Keep isLiveConnectedRef in sync
+      useEffect(() => {
+        isLiveConnectedRef.current = isLiveConnected;
+      }, [isLiveConnected]);
 
       // Active Call Duration Timer
       useEffect(() => {
@@ -364,34 +475,86 @@
         }, 800);
       }
 
-      // Proactive Speech Greeting
-      const speakProactiveGreeting = (text) => {
+      // Proactive Speech Greeting with Warm Voice Consistency & Safe Exception Handling
+      const speakProactiveGreeting = (text, onEndCallback) => {
         try {
-          if ('speechSynthesis' in window) {
+          if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
             window.speechSynthesis.cancel();
-            const utterance = new SpeechSynthesisUtterance(text);
-            
-            // Attempt to select a high-quality voice
-            const voices = window.speechSynthesis.getVoices();
-            const googleVoice = voices.find(voice => 
-              voice && voice.name && voice.name.includes("Google") && voice.lang && voice.lang.includes("en")
-            );
-            if (googleVoice) {
-              utterance.voice = googleVoice;
-            }
-            
-            utterance.rate = 1.0; 
-            utterance.pitch = 1.0;
-            window.speechSynthesis.speak(utterance);
+            isSpeakingRef.current = true;
+
+            setTimeout(() => {
+              try {
+                const utterance = new SpeechSynthesisUtterance(text);
+                const voice = getPreferredVoice();
+                if (voice) {
+                  utterance.voice = voice;
+                }
+                utterance.rate = 0.98; // Warm, natural human cadence
+                utterance.pitch = 1.02; // Friendly clear tone
+                utterance.volume = 1.0;
+
+                utterance.onend = () => {
+                  isSpeakingRef.current = false;
+                  if (onEndCallback) onEndCallback();
+                  // Automatically resume listening after AI finishes speaking
+                  if (isLiveConnectedRef.current && recognitionRef.current) {
+                    try { recognitionRef.current.start(); } catch (e) {}
+                  }
+                };
+
+                utterance.onerror = (e) => {
+                  console.warn("Speech synthesis utterance notice handled safely:", e);
+                  isSpeakingRef.current = false;
+                  if (onEndCallback) onEndCallback();
+                };
+
+                window.speechSynthesis.speak(utterance);
+              } catch (innerErr) {
+                console.warn("Speech utterance error handled safely:", innerErr);
+                isSpeakingRef.current = false;
+              }
+            }, 70);
           }
         } catch (err) {
-          console.warn("Speech synthesis notice:", err);
+          console.warn("Speech synthesis notice handled safely:", err);
         }
       };
 
-      // Toggle AI Voice Assistant Call
+      // Quick Voice Prompt Trigger
+      const handleQuickVoicePrompt = (promptText) => {
+        if (!isLiveConnected) return;
+
+        setTranscript(prev => [...prev, `[User] ${promptText}`]);
+        const { aiReply, bookingTriggered, serviceName } = generateAiResponse(promptText);
+        setAiResponseText(`"${aiReply}"`);
+        setTranscript(prev => [...prev, `[AI] ${aiReply}`]);
+
+        if (bookingTriggered) {
+          triggerStripeDepositFunctionCalling({
+            serviceType: serviceName,
+            depositAmount: (config && config.quickDepositFee) ? config.quickDepositFee : 50.00,
+            notes: promptText
+          });
+        }
+
+        if (recognitionRef.current) {
+          try { recognitionRef.current.stop(); } catch (e) {}
+        }
+        speakProactiveGreeting(aiReply);
+      };
+
+      // Toggle AI Voice Assistant Call with Real-time SpeechRecognition Mic Support
       const toggleGeminiLiveCall = async () => {
+        if (voiceTimerRef.current) {
+          clearTimeout(voiceTimerRef.current);
+          voiceTimerRef.current = null;
+        }
+
         if (isLiveConnected) {
+          if (recognitionRef.current) {
+            try { recognitionRef.current.stop(); } catch (e) {}
+            recognitionRef.current = null;
+          }
           if (mediaStreamRef.current) {
             mediaStreamRef.current.getTracks().forEach(track => track.stop());
             mediaStreamRef.current = null;
@@ -407,43 +570,79 @@
         try {
           setVoiceStatus("Requesting Microphone Access...");
           
-          // Request microphone access safely
           if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
             try {
               const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
               mediaStreamRef.current = stream;
-              setVoiceStatus("Microphone Active - Connected to Skynet One Assistant");
+              setVoiceStatus("Live 2-Way Voice Active — Speak to Assistant");
             } catch (micErr) {
               console.warn("Microphone access permission notice:", micErr);
-              setVoiceStatus("Voice Assistant Active (Demo Mode)");
+              setVoiceStatus("Live Voice Active (Interactive Mode)");
             }
           } else {
-            console.warn("navigator.mediaDevices not available in current container environment.");
-            setVoiceStatus("Voice Assistant Active (Demo Mode)");
+            setVoiceStatus("Live Voice Active (Interactive Mode)");
           }
 
           setIsLiveConnected(true);
 
           const greeting = "Hello! Thanks for reaching out to Skynet One. How can I help with your Starlink or networking setup today?";
           setAiResponseText(`"${greeting}"`);
-          speakProactiveGreeting(greeting);
-
           setTranscript([`[AI] ${greeting}`]);
 
-          // Simulate user speech & auto booking link creation
-          setTimeout(() => {
-            setTranscript(prev => [...prev, "[User] I need a Starlink roof mount and custom cable routing for my home."]);
-            const response2 = "I can definitely schedule our certified technician! Our Starlink Roof Mount is $200 and Custom Cable Routing is $75. I will generate a $50 deposit link right now to lock in your slot.";
-            setAiResponseText(`"${response2}"`);
-            speakProactiveGreeting(response2);
-            setTranscript(prev => [...prev, `[AI] ${response2}`]);
+          // SpeechRecognition real-time mic input listener
+          const SpeechRecognitionClass = typeof window !== 'undefined' && (window.SpeechRecognition || window.webkitSpeechRecognition);
 
-            triggerStripeDepositFunctionCalling({
-              serviceType: "Starlink Installation",
-              depositAmount: config.quickDepositFee || 50.00,
-              notes: "Starlink Roof Mount ($200) & Cable Routing ($75)"
-            });
-          }, 4500);
+          if (SpeechRecognitionClass) {
+            try {
+              const recognition = new SpeechRecognitionClass();
+              recognition.continuous = true;
+              recognition.interimResults = false;
+              recognition.lang = 'en-US';
+
+              recognition.onresult = (event) => {
+                const currentResultIndex = event.resultIndex;
+                const transcriptText = event.results[currentResultIndex][0].transcript.trim();
+
+                if (transcriptText && event.results[currentResultIndex].isFinal) {
+                  setTranscript(prev => [...prev, `[User] ${transcriptText}`]);
+
+                  const { aiReply, bookingTriggered, serviceName } = generateAiResponse(transcriptText);
+                  setAiResponseText(`"${aiReply}"`);
+                  setTranscript(prev => [...prev, `[AI] ${aiReply}`]);
+
+                  if (bookingTriggered) {
+                    triggerStripeDepositFunctionCalling({
+                      serviceType: serviceName,
+                      depositAmount: (config && config.quickDepositFee) ? config.quickDepositFee : 50.00,
+                      notes: transcriptText
+                    });
+                  }
+
+                  try { recognition.stop(); } catch (e) {}
+                  speakProactiveGreeting(aiReply);
+                }
+              };
+
+              recognition.onerror = (event) => {
+                console.warn("SpeechRecognition notice:", event.error);
+              };
+
+              recognition.onend = () => {
+                if (isLiveConnectedRef.current && !isSpeakingRef.current && recognitionRef.current) {
+                  try { recognitionRef.current.start(); } catch (e) {}
+                }
+              };
+
+              recognitionRef.current = recognition;
+              recognition.start();
+              setVoiceStatus("Listening for your voice... Speak anytime!");
+            } catch (recErr) {
+              console.warn("SpeechRecognition init notice:", recErr);
+            }
+          }
+
+          // Speak initial greeting
+          speakProactiveGreeting(greeting);
 
         } catch (err) {
           console.error("Voice Assistant Error:", err);
@@ -458,85 +657,19 @@
         if (!chatInput.trim()) return;
 
         const userMsg = chatInput.trim();
-        const lowerMsg = userMsg.toLowerCase();
-        
         setChatMessages(prev => [...prev, { sender: 'User', text: userMsg }]);
         setChatInput('');
         setIsAiTyping(true);
 
         setTimeout(() => {
-          let aiReply = "";
-          let isPolish = /[ąćęłńóśźż]|tak|nie|dzięki|dobrze|dystans|montaż|cena|koszt|instalacja|rezerwacja|proszę/i.test(lowerMsg);
+          const { aiReply, bookingTriggered, serviceName } = generateAiResponse(userMsg);
 
-          // Check for affirmative responses (e.g. "yes", "tak", "sure", "ok", "book it")
-          const isAffirmative = /^(yes|tak|sure|ok|okay|yep|yeah|book|confirm|jasne|pewnie|poproszę|chcę|zróbmy to|dobrze)$/i.test(lowerMsg.trim()) ||
-                                lowerMsg.includes("yes") || lowerMsg.includes("tak") || lowerMsg.includes("reserve") || lowerMsg.includes("rezerwuj");
-
-          // Check matching services from config.services
-          const matchedServices = config.services.filter(s => {
-            const sName = s.name.toLowerCase();
-            return lowerMsg.split(' ').some(word => word.length > 2 && sName.includes(word));
-          });
-
-          if (isAffirmative) {
-            if (isPolish) {
-              aiReply = "Wspaniale! Zarezerwowałem dla Ciebie najbliższy dostępny termin instalacji Starlink. Wystarczy wpłacić depozyt 50$ (przycisk Stripe poniżej), aby certyfikowany instalator Skynet One przyjechał pod Twój adres!";
-            } else {
-              aiReply = "Excellent! I have reserved the next available Starlink installation slot for you. Simply submit the $50 deposit using the Stripe button below to confirm your certified technician!";
-            }
-            triggerStripeDepositFunctionCalling({ serviceType: "Starlink Installation", depositAmount: 50.00, notes: userMsg });
-          } 
-          else if (matchedServices.length > 0) {
-            const serviceListStr = matchedServices.map(s => `${s.name}: $${s.price.toFixed(2)} (${s.desc})`).join("; ");
-            if (isPolish) {
-              aiReply = `Oto dopasowane usługi z naszego katalogu: ${serviceListStr}. Czy chcesz zarezerwować termin i wpłacić 50$ depozytu?`;
-            } else {
-              aiReply = `Here are the matching services from our catalog: ${serviceListStr}. Would you like to lock in an appointment slot with a $50 deposit?`;
-            }
-            triggerStripeDepositFunctionCalling({ serviceType: matchedServices[0].name, depositAmount: 50.00, notes: userMsg });
-          }
-          else if (lowerMsg.includes("pole") || lowerMsg.includes("ground") || lowerMsg.includes("słupek")) {
-            const pole = config.services.find(s => s.name.includes("Ground Pole")) || { price: 199.00 };
-            if (isPolish) {
-              aiReply = `Montaż na słupku ziemnym (Ground Pole Mount) kosztuje $${pole.price.toFixed(2)}. Obejmuje osadzenie słupka i poprowadzenie kabli. Czy chcesz zarezerwować termin z depozytem 50$?`;
-            } else {
-              aiReply = `Our Ground Pole Mount Installation is $${pole.price.toFixed(2)}. It includes setting up the pole and routing weather-sealed cabling. Would you like to reserve a time slot with a $50 deposit?`;
-            }
-          }
-          else if (lowerMsg.includes("survey") || lowerMsg.includes("clearance") || lowerMsg.includes("pomiar") || lowerMsg.includes("audyt")) {
-            if (isPolish) {
-              aiReply = "Przegląd terenu i pomiar przeszkód (Site Survey) kosztuje $130.00. Certyfikowany technik sprawdzi widoczność satelitów na Twojej posesji.";
-            } else {
-              aiReply = "Our Site Survey and Clearance Check is $130.00. A certified technician will measure obstruction angles to ensure optimal dish performance.";
-            }
-          }
-          else if (lowerMsg.includes("camera") || lowerMsg.includes("kamery") || lowerMsg.includes("kamera")) {
-            if (isPolish) {
-              aiReply = "Montaż kamer bezpieczeństwa Wi-Fi oraz Ethernet wynosi $50.00 za sztukę. Podłączamy i konfigurujemy podgląd na żywo.";
-            } else {
-              aiReply = "Security Camera Mounting (Wi-Fi or Wired Ethernet) is $50.00 per camera. We handle mounting, wiring, and network configuration.";
-            }
-          }
-          else if (lowerMsg.includes("mesh") || lowerMsg.includes("wifi") || lowerMsg.includes("router")) {
-            if (isPolish) {
-              aiReply = "Konfiguracja sieci Wi-Fi Mesh (do 2 routerów) kosztuje $80.00, a każdy dodatkowy router mesh to $20.00. Zapewniamy pełne pokrycie domu szybkim internetem!";
-            } else {
-              aiReply = "Wi-Fi Mesh Setup (up to 2 routers) is $80.00, and each additional router is $20.00. We optimize coverage throughout your whole property!";
-            }
-          }
-          else if (lowerMsg.includes("price") || lowerMsg.includes("cost") || lowerMsg.includes("rates") || lowerMsg.includes("cennik") || lowerMsg.includes("ile") || lowerMsg.includes("koszt")) {
-            if (isPolish) {
-              aiReply = `Główne usługi Skynet One:\n• Montaż na dachu: $200.00\n• Montaż z uchwytem: $299.00\n• Słupek w ziemi: $199.00\n• Ukryty kabel w ścianie (Wall Fishing): $125.00\n• Przegląd terenu: $130.00\n• Konfiguracja Wi-Fi Mesh: $80.00\n\nCzy chcesz zarezerwować termin depozytem 50$?`;
-            } else {
-              aiReply = `Top Skynet One Services:\n• Starlink Roof Mount: $200.00\n• Roof Mount w/ Bracket Included: $299.00\n• Ground Pole Mount: $199.00\n• Wall Fishing Cable Routing: $125.00\n• Site Survey: $130.00\n• Mesh Wi-Fi Setup: $80.00\n\nWould you like to lock in your appointment with a $50 deposit?`;
-            }
-          }
-          else {
-            if (isPolish) {
-              aiReply = "Cześć! Jestem asystentem Skynet One. Oferujemy profesjonalny montaż Starlink (na dachu $200, na słupku $199, prowadzenie kabli od $75, Wi-Fi Mesh $80). Napisz czym jesteś zainteresowany lub odpowiedz 'TAK', aby zarezerwować termin z depozytem 50$!";
-            } else {
-              aiReply = "Hello! I am the Skynet One AI Assistant. We offer certified Starlink installation (Roof Mount $200, Pole Mount $199, Cable Routing from $75, Mesh Wi-Fi $80). Let me know what you need or reply 'YES' to lock in your appointment with a $50 deposit!";
-            }
+          if (bookingTriggered) {
+            triggerStripeDepositFunctionCalling({
+              serviceType: serviceName,
+              depositAmount: (config && config.quickDepositFee) ? config.quickDepositFee : 50.00,
+              notes: userMsg
+            });
           }
 
           setChatMessages(prev => [...prev, { sender: 'AI', text: aiReply }]);
@@ -556,7 +689,7 @@
           setSmsNotification({
             phone: "+1 (800) 555-0199",
             trackingId: `SLK-${Math.floor(1000 + Math.random() * 9000)}`,
-            message: `CONFIRMED: $${config.quickDepositFee.toFixed(2)} deposit received for ${config.companyName}. Certified installer Unit #402 scheduled for your location!`,
+            message: `CONFIRMED: $${formatMoney(config.quickDepositFee)} deposit received for ${config.companyName}. Certified installer Unit #402 scheduled for your location!`,
             timestamp: timeStr
           });
 
@@ -770,6 +903,22 @@
                           {aiResponseText}
                         </p>
                       )}
+
+                      {/* Quick Voice Prompt Chips */}
+                      <div class="space-y-1.5 pt-1">
+                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Quick Voice Prompts (Tap or Speak):</p>
+                        <div class="flex flex-wrap gap-1.5">
+                          <button onClick={() => handleQuickVoicePrompt("I need Starlink Roof Mount installation")} class="text-[11px] bg-slate-900 border border-slate-700 hover:border-cyan-400 text-cyan-300 px-2.5 py-1 rounded-lg transition-all">
+                            Roof Mount ($200)
+                          </button>
+                          <button onClick={() => handleQuickVoicePrompt("I need custom cable routing through walls")} class="text-[11px] bg-slate-900 border border-slate-700 hover:border-cyan-400 text-cyan-300 px-2.5 py-1 rounded-lg transition-all">
+                            Cable Routing ($75)
+                          </button>
+                          <button onClick={() => handleQuickVoicePrompt("I want to book an appointment with $50 deposit")} class="text-[11px] bg-slate-900 border border-slate-700 hover:border-cyan-400 text-cyan-300 px-2.5 py-1 rounded-lg transition-all">
+                            Book Deposit ($50)
+                          </button>
+                        </div>
+                      </div>
                     </div>
                   ) : (
                     <div class="space-y-3">
@@ -805,14 +954,14 @@
                           <div class="bg-slate-900 p-3 rounded-xl border border-slate-800 space-y-1 text-xs text-slate-300">
                             <p><strong class="text-white">Scope:</strong> Starlink Roof Mount & Cable Routing</p>
                             <p><strong class="text-white">Estimated Total:</strong> $275.00</p>
-                            <p><strong class="text-white">Deposit Required:</strong> ${(config.quickDepositFee || 50.00).toFixed(2)}</p>
+                            <p><strong class="text-white">Deposit Required:</strong> ${formatMoney(config.quickDepositFee)}</p>
                           </div>
                           <button
                             onClick={handleDirectDeposit}
                             class="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-cyan-400 to-teal-400 text-slate-950 font-black text-xs flex items-center justify-center gap-2 shadow-lg"
                           >
                             <Icon name="credit-card" className="w-4 h-4" />
-                            <span>Confirm Booking & Pay ${(config.quickDepositFee || 50.00).toFixed(2)} Deposit</span>
+                            <span>Confirm Booking & Pay ${formatMoney(config.quickDepositFee)} Deposit</span>
                           </button>
                         </div>
                       )}
@@ -932,7 +1081,7 @@
             <div class="flex items-center justify-between">
               <div class="text-left">
                 <span class="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider">Security Booking Deposit</span>
-                <p class="text-xl font-black text-white">${config.quickDepositFee.toFixed(2)} USD</p>
+                <p class="text-xl font-black text-white">${formatMoney(config.quickDepositFee)} USD</p>
               </div>
               <div class="flex items-center gap-1 text-xs font-semibold text-emerald-400 bg-emerald-950/50 border border-emerald-800 px-2.5 py-1 rounded-xl">
                 <Icon name="shield-check" className="w-4 h-4" />
