@@ -314,69 +314,177 @@
         }
       };
 
-      // Central Conversational AI Response Engine
-      const generateAiResponse = (userMsg) => {
-        const lowerMsg = userMsg.toLowerCase();
-        let isPolish = /[ąćęłńóśźż]|tak|nie|dzięki|dobrze|dystans|montaż|cena|koszt|instalacja|rezerwacja|proszę/i.test(lowerMsg);
+      // Dynamic Intelligent Evaluator Engine for Multi-lingual Skynet One Assistant
+      const evaluateDynamicAssistantResponse = (userMsg, historyMessages = []) => {
+        const lowerMsg = (userMsg || "").toLowerCase().trim();
 
-        const isAffirmative = /^(yes|tak|sure|ok|okay|yep|yeah|book|confirm|jasne|pewnie|poproszę|chcę|zróbmy to|dobrze)$/i.test(lowerMsg.trim()) ||
-                              lowerMsg.includes("yes") || lowerMsg.includes("tak") || lowerMsg.includes("reserve") || lowerMsg.includes("rezerwuj") || lowerMsg.includes("deposit") || lowerMsg.includes("potwierdzam");
+        // Language detection
+        const isPolish = /[ąćęłńóśźż]|czy|mówisz|mowisz|tak|nie|dzięki|dobrze|dystans|montaż|cena|koszt|instalacja|rezerwacja|proszę|zwrot|depozyt|anulowa|gdzie|jak/i.test(lowerMsg);
+        const isSpanish = /hablas|español|precio|costo|instalación|reserva|depósito|cancelar|hola|gracias|dónde|cómo/i.test(lowerMsg);
 
-        const matchedServices = (config.services || []).filter(s => {
-          const sName = s.name.toLowerCase();
-          return lowerMsg.split(' ').some(word => word.length > 2 && sName.includes(word));
-        });
+        // Specific intent queries
+        const isLanguageQuestion = /mówisz|mowisz|speak|hablas|polsku|spanish|español|english/i.test(lowerMsg) && (lowerMsg.includes("?") || lowerMsg.startsWith("czy") || lowerMsg.startsWith("do you") || lowerMsg.startsWith("hablas"));
+        
+        const isRefundQuestion = /refund|zwrot|reembolso|cancel|anulow|24h|24 h|policy|polityk/i.test(lowerMsg);
+
+        const isPriceQuestion = /price|cost|cennik|cena|ile|cuanto|rates|fee|katalog/i.test(lowerMsg);
+
+        const isExplicitBooking = /^(yes|tak|sure|ok|okay|yep|yeah|book|confirm|jasne|pewnie|poproszę|chcę|zróbmy to|dobrze|rezerwuj|sí|si)$/i.test(lowerMsg) ||
+                                  lowerMsg.includes("book") || lowerMsg.includes("rezerwuj") || lowerMsg.includes("zróbmy to") || lowerMsg.includes("reserve") || lowerMsg.includes("confirm booking") || lowerMsg.includes("chcę zamówić");
 
         let aiReply = "";
         let bookingTriggered = false;
         let serviceName = "Starlink Installation";
 
-        if (isAffirmative) {
+        if (isExplicitBooking) {
           bookingTriggered = true;
           if (isPolish) {
-            aiReply = "Wspaniale! Zarezerwowałem dla Ciebie najbliższy dostępny termin instalacji Starlink. Wystarczy wpłacić depozyt 50$ przyciskiem Stripe poniżej, aby certyfikowany technik Skynet One przyjechał pod Twój adres!";
+            aiReply = "Wspaniale! Wygenerowałem dla Ciebie link do wpłaty depozytu $50, aby zarezerwować termin z certyfikowanym instalatorem Skynet One. Przycisk bezpiecznej płatności Stripe znajduje się poniżej!";
+          } else if (isSpanish) {
+            aiReply = "¡Excelente! He generado un enlace seguro para el depósito de $50 para reservar tu cita con un técnico certificado de Skynet One. ¡Haz clic en el botón de abajo para confirmar!";
           } else {
-            aiReply = "Excellent! I have reserved the next available Starlink installation slot for you. Simply submit the $50 deposit using the Stripe button below to confirm your certified technician!";
+            aiReply = "Excellent! I have generated a secure $50 Stripe deposit link right below to confirm and lock in your appointment slot with a certified Skynet One technician!";
           }
-        } else if (matchedServices.length > 0) {
-          serviceName = matchedServices[0].name;
-          const serviceListStr = matchedServices.map(s => `${s.name}: $${s.price.toFixed(2)}`).join(", ");
-          if (isPolish) {
-            aiReply = `Dla wybranej usługi: ${serviceListStr}. Wygenerowałem link do wpłaty depozytu 50$, aby zarezerwować termin!`;
+        } else if (isLanguageQuestion) {
+          if (isPolish || lowerMsg.includes("polsk")) {
+            aiReply = "Tak, mówię po polsku! Jestem asystentem Skynet One. Oferujemy profesjonalny montaż Starlinka, ukryte prowadzenie kabli w ścianach oraz konfigurację Wi-Fi Mesh. W czym mogę Ci dzisiaj pomóc?";
+          } else if (isSpanish || lowerMsg.includes("español")) {
+            aiReply = "¡Sí, hablo español! Soy el asistente de Skynet One. Ofrecemos instalación profesional de Starlink, cableado oculto y configuración Wi-Fi. ¿En qué te puedo ayudar hoy?";
           } else {
-            aiReply = `For your request: ${serviceListStr}. I generated a $50 deposit booking link right below to lock in your certified technician slot!`;
+            aiReply = "Yes, I speak English, Polish, and Spanish! I am the Skynet One AI Assistant. How can I assist with your Starlink mounting or networking setup today?";
           }
-          bookingTriggered = true;
-        } else if (lowerMsg.includes("roof") || lowerMsg.includes("dach") || lowerMsg.includes("montaż")) {
-          bookingTriggered = true;
+        } else if (isRefundQuestion) {
           if (isPolish) {
-            aiReply = "Montaż Starlink na dachu wynosi $200.00, a ukryte prowadzenie kabli od $75. Wygenerowałem rezerwację z depozytem $50!";
+            aiReply = "Wpłata depozytu $50 rezerwuje i blokuje Twój termin w kalendarzu instalatora. Nasza polityka jest przejrzysta: depozyt jest w 100% w pełni zwrotny, jeśli anulujesz rezerwację na co najmniej 24 godziny przed zaplanowanym terminem montażu. Czy chciałbyś zarezerwować termin?";
+          } else if (isSpanish) {
+            aiReply = "El depósito de $50 asegura tu horario en el calendario de nuestro técnico. Nuestra política es transparente: el depósito es 100% reembolsable si cancelas al menos 24 horas antes de la cita programada. ¿Te gustaría reservar un horario?";
           } else {
-            aiReply = "Our Starlink Roof Mount Installation is $200.00, and Wall Fishing Cable Routing starts at $75. I generated a $50 deposit link to lock in your technician!";
+            aiReply = "The $50 deposit locks in your appointment slot on our technician's schedule. Our policy is simple: the $50 deposit is 100% fully refundable if you cancel at least 24 hours prior to your scheduled service appointment. Would you like to lock in a time slot?";
           }
-        } else if (lowerMsg.includes("pole") || lowerMsg.includes("słupek") || lowerMsg.includes("ground")) {
-          bookingTriggered = true;
-          serviceName = "Ground Pole Mount";
+        } else if (isPriceQuestion) {
           if (isPolish) {
-            aiReply = "Montaż na słupku ziemnym wynosi $199.00. Obejmuje osadzenie słupka i uszczelnienie kabli. Zarezerwuj termin depozytem $50!";
+            aiReply = "Oto pełny cennik usług Skynet One:\n• Montaż Starlink na dachu: $200.00 (z uchwytem: $299.00)\n• Słupek ziemny: $199.00\n• Przegląd terenu i przeszkód: $130.00\n• Prowadzenie kabla po powierzchni: $75.00\n• Prowadzenie kabla wewnątrz ściany (Wall Fishing): $125.00\n• Konfiguracja Wi-Fi Mesh (do 2 routerów): $80.00\n• Montaż kamer bezpieczeństwa: $50.00 / szt.\n\nCzy chcesz zarezerwować termin z depozytem $50?";
+          } else if (isSpanish) {
+            aiReply = "Catálogo de precios de Skynet One:\n• Montaje de Starlink en techo: $200.00 (con soporte: $299.00)\n• Montaje en poste de tierra: $199.00\n• Inspección de sitio: $130.00\n• Cableado de superficie: $75.00\n• Cableado interno en pared: $125.00\n• Configuración Wi-Fi Mesh: $80.00\n\n¿Te gustaría reservar un horario con el depósito de $50?";
           } else {
-            aiReply = "Our Ground Pole Mount Installation is $199.00. I generated a $50 deposit link to lock in your appointment slot!";
+            aiReply = "Skynet One Full Service Catalog:\n• Starlink Roof Mount: $200.00 (w/ Bracket: $299.00)\n• Ground Pole Mount: $199.00\n• Site Survey & Obstruction Check: $130.00\n• Surface Cable Routing: $75.00\n• Interior Wall Fishing: $125.00\n• Wi-Fi Mesh Setup (up to 2 routers): $80.00\n• Security Camera Mounting: $50.00 / ea\n\nWould you like to lock in an appointment with a $50 deposit?";
           }
-        } else if (lowerMsg.includes("price") || lowerMsg.includes("cost") || lowerMsg.includes("cennik") || lowerMsg.includes("ile")) {
+        } else if (lowerMsg.includes("roof") || lowerMsg.includes("dach") || lowerMsg.includes("techo")) {
           if (isPolish) {
-            aiReply = "Cennik Skynet One: Montaż na dachu $200, Słupek w ziemi $199, Prowadzenie kabli od $75, Wi-Fi Mesh $80. Czy chcesz zarezerwować termin z depozytem 50$?";
+            aiReply = "Montaż Starlink na dachu wynosi $200.00 (lub $299.00 z dołączonym uchwytem ramiakowym). Obejmuje dokładne sprawdzenie przeszkód i uszczelnienie. Czy chcesz zarezerwować termin z depozytem $50?";
+          } else if (isSpanish) {
+            aiReply = "El montaje de Starlink en techo cuesta $200.00 ($299.00 con soporte incluido). Incluye verificación de obstrucciones y sellado impermeable. ¿Deseas reservar tu cita?";
           } else {
-            aiReply = "Skynet One Pricing: Roof Mount is $200, Ground Pole Mount is $199, Cable Routing is $75, and Mesh Wi-Fi is $80. Would you like to lock in a slot with a $50 deposit?";
+            aiReply = "Our Starlink Roof Mount Installation is $200.00 ($299.00 with bracket included). It includes an obstruction clearance check and weatherproof sealing. Would you like to reserve a slot with a $50 deposit?";
+          }
+        } else if (lowerMsg.includes("cable") || lowerMsg.includes("kabel") || lowerMsg.includes("fishing") || lowerMsg.includes("wall")) {
+          if (isPolish) {
+            aiReply = "Oferujemy ukryte prowadzenie kabli wewnątrz ścian (Wall Fishing) za $125.00 lub prowadzenie kabli po powierzchni zewnętrznej za $75.00. Czy potrzebujesz tego przy swojej instalacji Starlink?";
+          } else if (isSpanish) {
+            aiReply = "Ofrecemos cableado oculto dentro de paredes por $125.00 o cableado exterior de superficie por $75.00. ¿Necesitas esto para tu instalación?";
+          } else {
+            aiReply = "We offer concealed interior Wall Fishing cable routing for $125.00 or exterior surface cable pass-through for $75.00. Would you like to include this with your setup?";
           }
         } else {
           if (isPolish) {
-            aiReply = "Dziękuję! Jestem asystentem Skynet One. Oferujemy profesjonalny montaż Starlink i sieci. Wyjaśnij co potrzebujesz lub powiedz 'TAK', aby zarezerwować termin z depozytem $50!";
+            aiReply = "Dziękuję za wiadomość! Jestem asystentem Skynet One w Batavia, IL. Oferujemy certyfikowany montaż Starlinka, ukryte kable i sieci Wi-Fi Mesh. Powiedz co dokładnie potrzebujesz lub wpisz 'TAK', aby zarezerwować termin z depozytem $50!";
+          } else if (isSpanish) {
+            aiReply = "¡Gracias por contactar a Skynet One! Ofrecemos instalación profesional de Starlink, cableado y redes Wi-Fi. Dime qué servicio necesitas o responde 'SÍ' para reservar con un depósito de $50.";
           } else {
-            aiReply = "Thank you! I am the Skynet One Voice Assistant. We provide professional Starlink installation and cable routing. Tell me what setup you need or say 'YES' to book with a $50 deposit!";
+            aiReply = "Thank you for reaching out to Skynet One! We offer certified Starlink mounting, wall fishing cable routing, and Mesh Wi-Fi setups across Batavia, IL and surrounding areas. How can I help with your setup today, or say 'YES' to book with a $50 deposit?";
           }
         }
 
         return { aiReply, bookingTriggered, serviceName };
+      };
+
+      // Primary Asynchronous Gemini AI REST Integration Call
+      const generateAiResponseAsync = async (userMsg, historyMessages = []) => {
+        const apiKey = (typeof window !== 'undefined' && window.GEMINI_API_KEY) || 
+                       (typeof process !== 'undefined' && process.env && process.env.GEMINI_API_KEY) || 
+                       "";
+
+        const systemInstructionText = `
+You are the official AI Voice & Chat Assistant for Skynet One Starlink & Field Network Services (Batavia, IL and surrounding service areas).
+
+BUSINESS CATALOG & PRICING:
+1. Starlink Roof Mount Installation: $200.00
+2. Starlink Roof Mount with Mount Included: $299.00
+3. Ground Pole Mount Installation: $199.00
+4. Site Survey and Clearance Check: $130.00
+5. On-Site Diagnostic Service Call: $80.00
+6. Equipment Replacement Service Call: $130.00
+7. Custom Surface Cable Routing: $75.00
+8. Interior Wall Fishing Cable Routing: $125.00
+9. Wi-Fi Mesh Setup Up to 2 Routers: $80.00
+10. Additional Wi-Fi Mesh Router: $20.00
+11. Wi-Fi Security Camera Mounting: $50.00
+12. Wired Ethernet Camera Mounting: $50.00
+13. Smart Device Network Connection: $20.00
+
+POLICIES:
+- A $50 security deposit holds and locks in the customer's appointment slot.
+- CANCELLATION & REFUND POLICY: The $50 deposit is 100% fully refundable if canceled at least 24 hours prior to the scheduled service appointment.
+- Service Area: Batavia, IL and surrounding areas.
+
+CRITICAL BEHAVIORAL RULES:
+1. MULTI-LANGUAGE MANDATE: Detect the language of the user's input (English, Polish, Spanish, etc.) and ALWAYS respond in that EXACT SAME language. E.g., if user asks in Polish ("mówisz po polsku?"), respond in Polish ("Tak, mówię po polsku! Jestem asystentem Skynet One. W czym mogę pomóc przy instalacji Starlinka?").
+2. CONTEXTUAL & DIRECT ANSWERS: Directly answer the user's specific question FIRST before making any offer. If asked about language, confirm language capabilities. If asked about deposit refundability, explicitly detail the 24-hour full refund policy.
+3. INTENT-DRIVEN BOOKING TRIGGER: Set "bookingTriggered": true ONLY if the user explicitly agrees or asks to book/reserve a slot (e.g. "yes", "tak", "book it", "rezerwuj", "zróbmy to", "poproszę termin"). Do NOT set "bookingTriggered": true for simple information questions or pricing inquiries.
+
+OUTPUT FORMAT:
+Return a JSON object with keys:
+{
+  "aiReply": "Direct natural response in the same language as the user",
+  "bookingTriggered": true | false,
+  "serviceName": "Name of primary service if booking"
+}
+`;
+
+        if (apiKey && apiKey !== "MY_GEMINI_API_KEY" && apiKey !== "AIzaSy_MOCK_KEY") {
+          try {
+            const contents = [];
+            if (Array.isArray(historyMessages)) {
+              historyMessages.slice(-6).forEach(msg => {
+                const role = (msg.sender === 'User' || msg.sender === 'user') ? 'user' : 'model';
+                contents.push({ role, parts: [{ text: msg.text || "" }] });
+              });
+            }
+            contents.push({ role: 'user', parts: [{ text: userMsg }] });
+
+            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                contents: contents,
+                systemInstruction: { parts: [{ text: systemInstructionText }] },
+                generationConfig: {
+                  temperature: 0.2,
+                  responseMimeType: "application/json"
+                }
+              })
+            });
+
+            if (response.ok) {
+              const data = await response.json();
+              const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+              if (rawText) {
+                const parsed = JSON.parse(rawText);
+                if (parsed && parsed.aiReply) {
+                  return {
+                    aiReply: parsed.aiReply,
+                    bookingTriggered: !!parsed.bookingTriggered,
+                    serviceName: parsed.serviceName || "Starlink Installation"
+                  };
+                }
+              }
+            }
+          } catch (err) {
+            console.warn("Gemini API call notice, using dynamic evaluator:", err);
+          }
+        }
+
+        return evaluateDynamicAssistantResponse(userMsg, historyMessages);
       };
 
       // Audio level animation & Post-Call Summary trigger
@@ -546,11 +654,11 @@
       }
 
       // Quick Voice Prompt Trigger
-      const handleQuickVoicePrompt = (promptText) => {
+      const handleQuickVoicePrompt = async (promptText) => {
         if (!isLiveConnected) return;
 
         setTranscript(prev => [...prev, `[User] ${promptText}`]);
-        const { aiReply, bookingTriggered, serviceName } = generateAiResponse(promptText);
+        const { aiReply, bookingTriggered, serviceName } = await generateAiResponseAsync(promptText, transcript);
         setAiResponseText(`"${aiReply}"`);
         setTranscript(prev => [...prev, `[AI] ${aiReply}`]);
 
@@ -622,17 +730,18 @@
       };
 
       // Send Text Message (Intelligent Multi-lingual AI Assistant)
-      const handleSendChatMessage = (e) => {
+      const handleSendChatMessage = async (e) => {
         e.preventDefault();
         if (!chatInput.trim()) return;
 
         const userMsg = chatInput.trim();
-        setChatMessages(prev => [...prev, { sender: 'User', text: userMsg }]);
+        const updatedChat = [...chatMessages, { sender: 'User', text: userMsg }];
+        setChatMessages(updatedChat);
         setChatInput('');
         setIsAiTyping(true);
 
-        setTimeout(() => {
-          const { aiReply, bookingTriggered, serviceName } = generateAiResponse(userMsg);
+        try {
+          const { aiReply, bookingTriggered, serviceName } = await generateAiResponseAsync(userMsg, updatedChat);
 
           if (bookingTriggered) {
             triggerStripeDepositFunctionCalling({
@@ -643,8 +752,12 @@
           }
 
           setChatMessages(prev => [...prev, { sender: 'AI', text: aiReply }]);
+        } catch (err) {
+          console.warn("Error processing AI response:", err);
+          setChatMessages(prev => [...prev, { sender: 'AI', text: "Thank you for reaching out to Skynet One! How can I assist with your Starlink or networking setup?" }]);
+        } finally {
           setIsAiTyping(false);
-        }, 600);
+        }
       };
 
       // Direct Deposit Button Click
@@ -659,7 +772,7 @@
           setSmsNotification({
             phone: "+1 (800) 555-0199",
             trackingId: `SLK-${Math.floor(1000 + Math.random() * 9000)}`,
-            message: `CONFIRMED: $${formatMoney(config.quickDepositFee)} deposit received for ${config.companyName}. Certified installer Unit #402 scheduled for your location!`,
+            message: `Skynet One: Booking Confirmed! $${formatMoney(config.quickDepositFee)} deposit received. Certified Tech #402 (Mike) assigned for your Starlink setup. Estimated Arrival Window: Tomorrow, 8:00 AM - 11:00 AM. We will send an SMS arrival alert 30 mins prior to arrival.`,
             timestamp: timeStr
           });
 
@@ -767,7 +880,7 @@
               <span>
                 {dispatchStage === 0 && "Select voice or text assistant below to request Starlink installation details."}
                 {dispatchStage === 1 && "Installation slot reserved for Skynet One! Complete $50 deposit below to confirm tech."}
-                {dispatchStage === 2 && "Certified Technician Unit #402 is en route to your installation address."}
+                {dispatchStage === 2 && "Certified Tech #402 (Mike) assigned. We will send an SMS arrival notification 30 mins prior."}
                 {dispatchStage === 3 && "Installation completed! Dish aligned & speed test verified."}
               </span>
             </div>
