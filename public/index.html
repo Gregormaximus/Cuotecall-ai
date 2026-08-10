@@ -94,8 +94,18 @@
       logoUrl: "https://images.unsplash.com/photo-1544197150-b99a580bb7a8?w=150&auto=format&fit=crop&q=80",
       services: [
         { name: "Starlink Roof Mount", price: 200.00, desc: "Eaves/Ridge chimney bracket installation with obstruction check" },
-        { name: "Custom Cable Routing", price: 75.00, desc: "Weatherproof exterior to interior wall conduit pass-through" },
-        { name: "Mesh WiFi Setup", price: 199.00, desc: "Whole-home wireless mesh network integration and speed optimization" }
+        { name: "Starlink Roof Mount w/ Mount", price: 299.00, desc: "Installation including mounting bracket" },
+        { name: "Ground Pole Mount", price: 199.00, desc: "Ground pole installation" },
+        { name: "Site Survey", price: 130.00, desc: "On-site survey and clearance check" },
+        { name: "Diagnostic Service", price: 80.00, desc: "On-site diagnostic service call" },
+        { name: "Equipment Replacement", price: 130.00, desc: "Equipment replacement service call" },
+        { name: "Surface Cable Routing", price: 75.00, desc: "Custom surface cable routing" },
+        { name: "Wall Fishing Cable Routing", price: 125.00, desc: "Interior wall fishing cable routing" },
+        { name: "Mesh WiFi Setup", price: 80.00, desc: "Wi-Fi Mesh setup up to 2 routers" },
+        { name: "Additional Mesh Router", price: 20.00, desc: "Additional Wi-Fi mesh router" },
+        { name: "Security Camera Mount", price: 50.00, desc: "Wi-Fi security camera mounting" },
+        { name: "Wired Camera Mount", price: 50.00, desc: "Wired ethernet camera mounting" },
+        { name: "Smart Device Connection", price: 20.00, desc: "Smart device network connection" }
       ],
       systemInstruction: "You are the AI Assistant for Skynet One Starlink Installation. Greet the customer warmly, ask about their roof mounting or cabling needs, explain rates ($200 Roof Mount, $75 Cable Routing, $199 Mesh Setup), and provide a $50 deposit link to secure their installation slot. Sentiment Adaptation: Remain upbeat, confident, and empathetic. Adjust tone dynamically: calm and reassure anxious or stressed clients with soothing reassurance while remaining professional and direct."
     };
@@ -600,10 +610,9 @@
                   )}
                 </button>
 
-                <div class="w-full space-y-3">
-                  {isLiveConnected && (
-                    <div class="p-4 rounded-2xl bg-slate-950 border border-cyan-500/40 text-left space-y-3">
-                      <div class="flex items-center justify-between text-xs font-semibold text-cyan-400">
+                <div class="w-full space-y-3 min-h-[300px]">
+                  <div class={isLiveConnected ? "p-4 rounded-2xl bg-slate-950 border border-cyan-500/40 text-left space-y-3" : "hidden"}>
+                    <div class="flex items-center justify-between text-xs font-semibold text-cyan-400">
                         <span class="flex items-center gap-2">
                           <span class="voice-wave"></span>
                           <span class="voice-wave"></span>
@@ -634,8 +643,7 @@
                         </p>
                       )}
                     </div>
-                  )}
-
+                  
                   {/* Transcript Download Button */}
                   {!isLiveConnected && transcript.length > 0 && (
                     <button
