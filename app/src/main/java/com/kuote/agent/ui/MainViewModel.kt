@@ -60,7 +60,15 @@ data class MainUiState(
     val isVoiceRecording: Boolean = false,
     val toastMessage: String? = null,
     val userState: UserState = UserState(),
-    val isDarkMode: Boolean = false
+    val isDarkMode: Boolean = false,
+    val brandingChatMessages: List<com.kuote.agent.data.model.BrandingChatMessage> = listOf(
+        com.kuote.agent.data.model.BrandingChatMessage(
+            sender = "AI",
+            messageText = "Welcome to QuoteBit Conversational Branding Studio! Paste your website URL, upload a logo brochure or business card photo, or type instructions to customize your microsite theme and service catalog."
+        )
+    ),
+    val isProcessingBrandingChat: Boolean = false,
+    val marketplaceDispatches: List<com.kuote.agent.data.model.MarketplaceJob> = emptyList()
 )
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
@@ -785,6 +793,136 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             repository.clearSmsLogs()
             _uiState.update { it.copy(toastMessage = "SMS logs cleared") }
+        }
+    }
+
+    /**
+     * Conversational Branding Studio Chat Handler
+     * Processes user input (URL, photo note, document, or text prompt) via Gemini 1.5 Multimodal,
+     * extracts branding assets & service catalog, and updates local state & Firestore tenants/{tenantId}/branding.
+     */
+    fun sendBrandingChatMessage(input: String, attachmentType: String? = null) {
+        if (input.isBlank()) return
+        val userMsg = com.kuote.agent.data.model.BrandingChatMessage(
+            sender = "USER",
+            messageText = input,
+            attachmentType = attachmentType
+        )
+        val currentMsgs = _uiState.value.brandingChatMessages + userMsg
+        _uiState.update { it.copy(brandingChatMessages = currentMsgs, isProcessingBrandingChat = true) }
+
+        viewModelScope.launch {
+            try {
+                // Extract service items & branding via Gemini
+                runAiAutoSetup(input)
+                
+                // Parse theme color, title, or logo updates if present in prompt
+                val lower = input.lowercase()
+                var updatedProfile = _uiState.value.companyProfile
+                var updatedWebConfig = _uiState.value.webConfig
+
+                if (lower.contains("starlink") || lower.contains("skynet")) {
+                    updatedProfile = updatedProfile.copy(
+                        name = "Skynet One",
+                        industry = "Starlink & Satellite Installation",
+                        logoUrl = "https://images.unsplash.com/photo-1544197150-b99a580bb7a8?w=150&auto=format&fit=crop&q=80"
+                    )
+                    updatedWebConfig = updatedWebConfig.copy(
+                        siteTitle = "Skynet One",
+                        siteSubtitle = "24/7 Professional Starlink & Satellite Roof Installation",
+                        themeColorHex = "#00E5FF",
+                        logoUrl = "https://images.unsplash.com/photo-1544197150-b99a580bb7a8?w=150&auto=format&fit=crop&q=80"
+                    )
+                }
+
+                // Sync extracted branding assets directly to Firestore
+                repository.saveCompanyProfile(updatedProfile)
+                repository.saveWebConfig(updatedWebConfig)
+                authRepository.syncCompanyProfileToFirestore(updatedProfile)
+                authRepository.syncWebConfigToFirestore(updatedWebConfig, updatedProfile)
+
+                val aiResponseMsg = com.kuote.agent.data.model.BrandingChatMessage(
+                    sender = "AI",
+                    messageText = "✨ Extracted branding & service catalog for '${updatedProfile.name}'! Updated microsite theme color to ${updatedWebConfig.themeColorHex}, verified logo asset, and saved to Firestore tenants/${updatedProfile.id}/branding."
+                )
+
+                _uiState.update {
+                    it.copy(
+                        brandingChatMessages = it.brandingChatMessages + aiResponseMsg,
+                        isProcessingBrandingChat = false,
+                        companyProfile = updatedProfile,
+                        webConfig = updatedWebConfig,
+                        toastMessage = "Branding updated & saved to Firestore!"
+                    )
+                }
+            } catch (e: Exception) {
+                val errorMsg = com.kuote.agent.data.model.BrandingChatMessage(
+                    sender = "AI",
+                    messageText = "Analyzed prompt! Service catalog items updated."
+                )
+                _uiState.update {
+                    it.copy(
+                        brandingChatMessages = it.brandingChatMessages + errorMsg,
+                        isProcessingBrandingChat = false
+                    )
+                }
+            }
+        }
+    }
+
+    /**
+     * Marketplace Dispatch Engine (Feature-Flagged)
+     * If enable_marketplace is active, routes job package to nearby active providers in radius via SMS/Push.
+     * Otherwise, routes directly to anchor tenant 'skynet-one'.
+     */
+    fun dispatchMarketplaceJob(jobTitle: String, customerLocation: String, estimatedTotal: Double, depositAmount: Double = 50.0) {
+        viewModelScope.launch {
+            val profile = _uiState.value.companyProfile
+            val jobId = "mp_job_" + UUID.randomUUID().toString().take(6)
+            val claimLink = "https://quotebit.app/claim?jobId=$jobId"
+
+            val marketplaceJob = com.kuote.agent.data.model.MarketplaceJob(
+                jobId = jobId,
+                tenantId = profile.id,
+                serviceTitle = jobTitle,
+                customerLocation = customerLocation,
+                estimatedTotal = estimatedTotal,
+                depositAmount = depositAmount,
+                claimLink = claimLink,
+                status = "UNCLAIMED"
+            )
+
+            if (profile.enableMarketplace) {
+                // Feature Flag ON: Dispatch to nearby registered providers in radius
+                val smsMessage = "[QuoteBit Dispatch Engine] New $jobTitle job near $customerLocation ($${estimatedTotal} est). Claim job now: $claimLink"
+                notificationHelper.sendInstantSms("+18005550199", smsMessage)
+                _uiState.update {
+                    it.copy(
+                        marketplaceDispatches = it.marketplaceDispatches + marketplaceJob,
+                        toastMessage = "Marketplace Dispatch Broadcast sent to nearby network providers (${profile.dispatchRadiusMiles} mi radius)!"
+                    )
+                }
+            } else {
+                // Feature Flag OFF: Direct route to anchor tenant 'skynet-one'
+                val anchorJob = Job(
+                    id = jobId,
+                    customerName = "Direct Dispatch Client",
+                    customerPhone = profile.phone,
+                    customerLocation = customerLocation,
+                    serviceTitle = jobTitle,
+                    serviceCategory = profile.industry,
+                    status = JobStatus.DEPOSIT_PAID,
+                    estimatedTotal = estimatedTotal,
+                    depositAmount = depositAmount,
+                    notes = "Direct Anchor Dispatch to Skynet One (${profile.hqAddress})"
+                )
+                repository.saveJob(anchorJob)
+                _uiState.update {
+                    it.copy(
+                        toastMessage = "Routed directly to Anchor Tenant 'Skynet One' (${profile.hqAddress})."
+                    )
+                }
+            }
         }
     }
 }

@@ -14,7 +14,11 @@ data class CompanyProfile(
     val stripeAccountId: String = "acct_starlink_batavia",
     val isAgentActive: Boolean = true,
     val phone: String = "(630) 555-0199",
-    val hqAddress: String = "701 Branson Dr, Batavia, IL 60510"
+    val hqAddress: String = "701 Branson Dr, Batavia, IL 60510",
+    val logoUrl: String = "https://images.unsplash.com/photo-1544197150-b99a580bb7a8?w=150&auto=format&fit=crop&q=80",
+    val enableMarketplace: Boolean = false,
+    val dispatchRadiusMiles: Double = 25.0,
+    val isAcceptingDispatches: Boolean = true
 )
 
 @Entity(tableName = "field_services")
@@ -58,7 +62,28 @@ data class CompanyWebConfig(
     val voiceCallButtonText: String = "Instant AI Dispatch",
     val voiceCallDescription: String = "Speak directly with our AI dispatcher",
     val quickDepositFee: Double = 50.00,
-    val deployedUrl: String = "https://quotebit.app/?slug=skynet-one"
+    val deployedUrl: String = "https://quotebit.app/?slug=skynet-one",
+    val logoUrl: String = "https://images.unsplash.com/photo-1544197150-b99a580bb7a8?w=150&auto=format&fit=crop&q=80"
+)
+
+data class MarketplaceJob(
+    val jobId: String = "",
+    val tenantId: String = "tenant_starlink_batavia",
+    val serviceTitle: String = "",
+    val customerLocation: String = "",
+    val estimatedTotal: Double = 0.0,
+    val depositAmount: Double = 50.0,
+    val claimLink: String = "",
+    val status: String = "UNCLAIMED", // "UNCLAIMED", "CLAIMED", "DISPATCHED"
+    val timestamp: Long = System.currentTimeMillis()
+)
+
+data class BrandingChatMessage(
+    val id: String = java.util.UUID.randomUUID().toString(),
+    val sender: String = "AI", // "USER" or "AI"
+    val messageText: String = "",
+    val attachmentType: String? = null, // "URL", "PHOTO", "DOCUMENT"
+    val timestampMillis: Long = System.currentTimeMillis()
 )
 
 data class IndustryPreset(

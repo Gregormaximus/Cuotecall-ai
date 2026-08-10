@@ -292,24 +292,36 @@ class AuthRepository(private val context: Context) {
                 "defaultDeposit" to profile.defaultDeposit,
                 "baseServiceFee" to profile.baseServiceFee,
                 "stripeAccountId" to profile.stripeAccountId,
-                "isAgentActive" to profile.isAgentActive
+                "isAgentActive" to profile.isAgentActive,
+                "logoUrl" to profile.logoUrl,
+                "enableMarketplace" to profile.enableMarketplace,
+                "dispatchRadiusMiles" to profile.dispatchRadiusMiles,
+                "isAcceptingDispatches" to profile.isAcceptingDispatches
             )
             firestore.collection("users").document(userId)
                 .collection("companyProfile").document("main")
                 .set(profileData, SetOptions.merge())
                 .await()
 
-            // Also sync to multi-tenant store for tenant_starlink_batavia live testing
+            // Also sync to multi-tenant store under tenants/{tenantId}/branding
+            val tenantId = if (profile.id.isNotBlank()) profile.id else "tenant_starlink_batavia"
             try {
-                firestore.collection("tenants").document("tenant_starlink_batavia")
+                firestore.collection("tenants").document(tenantId)
                     .set(mapOf("profile" to profileData, "updatedAt" to System.currentTimeMillis()), SetOptions.merge())
                     .await()
-                firestore.collection("tenants").document("tenant_starlink_batavia")
-                    .collection("companyProfile").document("main")
-                    .set(profileData, SetOptions.merge())
+                firestore.collection("tenants").document(tenantId)
+                    .collection("branding").document("main")
+                    .set(mapOf(
+                        "companyName" to profile.name,
+                        "industry" to profile.industry,
+                        "logoUrl" to profile.logoUrl,
+                        "hqAddress" to profile.hqAddress,
+                        "phone" to profile.phone,
+                        "updatedAt" to System.currentTimeMillis()
+                    ), SetOptions.merge())
                     .await()
             } catch (te: Exception) {
-                Log.w("AuthRepository", "Tenant starlink batavia sync notice", te)
+                Log.w("AuthRepository", "Tenant branding sync notice", te)
             }
 
             // Also persist to global site collection by slug for public Micro-site access
@@ -369,6 +381,7 @@ class AuthRepository(private val context: Context) {
                 "depositAmount" to config.quickDepositFee,
                 "stripeAccountId" to companyProfile.stripeAccountId,
                 "themeColors" to config.themeColorHex,
+                "logoUrl" to (config.logoUrl.ifBlank { companyProfile.logoUrl }),
                 "ownerPhoneNumber" to companyProfile.phone,
                 "siteTitle" to config.siteTitle,
                 "siteSubtitle" to config.siteSubtitle,

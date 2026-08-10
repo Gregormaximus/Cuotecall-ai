@@ -174,9 +174,15 @@ class MainActivity : ComponentActivity() {
                                 2 -> SetupScreen(
                                     profile = uiState.companyProfile,
                                     services = uiState.services,
+                                    webConfig = uiState.webConfig,
+                                    brandingChatMessages = uiState.brandingChatMessages,
+                                    isProcessingBrandingChat = uiState.isProcessingBrandingChat,
                                     isSmartPricingEnabled = uiState.isDynamicPricingEnabled,
                                     onSaveProfile = { name, industry, sms, deposit, base, hq ->
                                         viewModel.updateCompanyProfile(name, industry, sms, deposit, base, hq)
+                                    },
+                                    onSendBrandingChatMessage = { input, attachType ->
+                                        viewModel.sendBrandingChatMessage(input, attachType)
                                     },
                                     onAddServiceClick = { viewModel.setAddServiceDialogOpen(true) },
                                     onDeleteService = { viewModel.deleteService(it) },
