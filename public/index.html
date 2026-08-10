@@ -217,8 +217,9 @@
         if ('speechSynthesis' in window) {
           window.speechSynthesis.cancel();
           const utterance = new SpeechSynthesisUtterance(text);
-          utterance.rate = 1.0;
-          utterance.pitch = 1.0;
+          // Tweak rate and pitch for a slightly more human feel
+          utterance.rate = 0.95;
+          utterance.pitch = 0.9; 
           window.speechSynthesis.speak(utterance);
         }
       };
@@ -240,9 +241,17 @@
 
         try {
           setVoiceStatus("Requesting Microphone Access...");
-          if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            mediaStreamRef.current = stream;
+          
+          // Request microphone access
+          let stream;
+          try {
+             stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+             mediaStreamRef.current = stream;
+          } catch (micErr) {
+             console.error("Microphone access denied or unavailable:", micErr);
+             setVoiceStatus("Mic Error - Using Text Chat");
+             setActiveTab('chat');
+             return; // Stop if mic fails
           }
 
           setVoiceStatus("Microphone Active - Connected to Skynet One Assistant");
@@ -270,14 +279,9 @@
           }, 4500);
 
         } catch (err) {
-          console.error("Microphone/Voice Error:", err);
-          let errMsg = "Microphone access optional — use text chat below!";
-          if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
-            errMsg = "Microphone Permission Denied. Switching to Text Chat!";
-          }
-          setVoiceStatus(errMsg);
+          console.error("Voice Assistant Error:", err);
+          setVoiceStatus("Voice Assistant Unavailable");
           setIsLiveConnected(false);
-          setActiveTab('chat');
         }
       };
 

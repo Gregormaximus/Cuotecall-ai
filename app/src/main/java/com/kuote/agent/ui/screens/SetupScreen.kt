@@ -85,14 +85,13 @@ fun SetupScreen(
     ) {
         LazyColumn(
             modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 16.dp),
-            contentPadding = PaddingValues(top = 12.dp, bottom = 80.dp),
+                .fillMaxSize(),
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             // Header Section
             item {
-                Column {
+                Column(modifier = Modifier.fillMaxWidth()) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -100,7 +99,7 @@ fun SetupScreen(
                     ) {
                         Text(
                             text = "Branding & Catalog Studio",
-                            fontSize = 26.sp,
+                            fontSize = 24.sp,
                             fontWeight = FontWeight.Black,
                             color = MaterialTheme.colorScheme.onBackground
                         )
@@ -122,24 +121,24 @@ fun SetupScreen(
                                         .background(Color(0xFF10B981))
                                 )
                                 Text(
-                                    text = "LIVE FIRESTORE SYNC",
-                                    fontSize = 11.sp,
+                                    text = "LIVE SYNC",
+                                    fontSize = 10.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.primary
                                 )
                             }
                         }
                     }
-                    Spacer(modifier = Modifier.height(2.dp))
+                    Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "Conversational AI branding extraction for ${profile.name}.",
+                        text = "Conversational AI branding for ${profile.name}.",
                         fontSize = 13.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
 
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    // Tab selector (Chat Studio vs Form Settings)
+                    // Tab selector
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -157,9 +156,9 @@ fun SetupScreen(
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                "💬 Chat Branding Studio",
+                                "💬 Chat Studio",
                                 fontWeight = FontWeight.Bold,
-                                fontSize = 13.sp,
+                                fontSize = 12.sp,
                                 color = if (activeTab == 0) Color.Black else MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
@@ -174,9 +173,9 @@ fun SetupScreen(
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                "⚙️ Manual Profile Settings",
+                                "⚙️ Settings",
                                 fontWeight = FontWeight.Bold,
-                                fontSize = 13.sp,
+                                fontSize = 12.sp,
                                 color = if (activeTab == 1) Color.Black else MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
