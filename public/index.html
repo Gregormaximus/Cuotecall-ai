@@ -66,6 +66,60 @@
   <script type="text/babel">
     const { useState, useEffect, useRef } = React;
 
+    // React Error Boundary to prevent black screen crashes
+    class ErrorBoundary extends React.Component {
+      constructor(props) {
+        super(props);
+        this.state = { hasError: false, error: null };
+      }
+      static getDerivedStateFromError(error) {
+        return { hasError: true, error };
+      }
+      componentDidCatch(error, errorInfo) {
+        console.error("App Error Caught by Boundary:", error, errorInfo);
+      }
+      render() {
+        if (this.state.hasError) {
+          return (
+            <div class="p-6 bg-slate-900 border border-red-500/50 rounded-3xl text-center space-y-4 my-8">
+              <h2 class="text-lg font-bold text-red-400">Assistant Encountered a Temporary Error</h2>
+              <p class="text-xs text-slate-300">The page remained visible and protected from crashing. Click below to reload the assistant.</p>
+              <button 
+                onClick={() => this.setState({ hasError: false })}
+                class="px-5 py-2.5 bg-cyan-500 text-slate-950 font-bold text-xs rounded-xl shadow hover:bg-cyan-400"
+              >
+                Reload Assistant UI
+              </button>
+            </div>
+          );
+        }
+        return this.props.children;
+      }
+    }
+
+    // Safe inline React SVG Icon Component (Prevents DOM mutation crashes caused by Lucide)
+    function Icon({ name, className = "w-4 h-4" }) {
+      const icons = {
+        mic: <svg class={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/></svg>,
+        "message-square": <svg class={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M8 10h.01M12 10h.01M16 10h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>,
+        "phone-call": <svg class={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/></svg>,
+        "phone-off": <svg class={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M16 8l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2M5 3a2 2 0 00-2 2v1c0 8.284 6.716 15 15 15h1a2 2 0 002-2v-3.28a1 1 0 00-.684-.949l-4.493-1.498a1 1 0 00-1.21.502l-1.13 2.257a11.042 11.042 0 01-5.516-5.516l2.257-1.13a1 1 0 00.502-1.21L8.228 3.684A1 1 0 007.28 3H5z"/></svg>,
+        wifi: <svg class={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0"/></svg>,
+        activity: <svg class={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>,
+        info: <svg class={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>,
+        camera: <svg class={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><circle cx="12" cy="13" r="3"/></svg>,
+        "upload-cloud": <svg class={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 0115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>,
+        "map-pin": <svg class={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><circle cx="12" cy="11" r="3"/></svg>,
+        crosshair: <svg class={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="9"/><path strokeLinecap="round" strokeLinejoin="round" d="M12 3v3m0 12v3M3 12h3m12 0h3"/></svg>,
+        "shield-check": <svg class={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>,
+        "credit-card": <svg class={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>,
+        "external-link": <svg class={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>,
+        "check-circle": <svg class={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>,
+        download: <svg class={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+      };
+      return icons[name] || <span class="w-4 h-4 inline-block"></span>;
+    }
+
     // Firebase Config fallback
     const firebaseConfig = {
       apiKey: "AIzaSy_MOCK_FIREBASE_KEY_FOR_QUOTECALL_AI",
@@ -93,19 +147,19 @@
       industry: "Starlink & Fiber Installation",
       logoUrl: "https://images.unsplash.com/photo-1544197150-b99a580bb7a8?w=150&auto=format&fit=crop&q=80",
       services: [
-        { name: "Starlink Roof Mount", price: 200.00, desc: "Eaves/Ridge chimney bracket installation with obstruction check" },
-        { name: "Starlink Roof Mount w/ Mount", price: 299.00, desc: "Installation including mounting bracket" },
-        { name: "Ground Pole Mount", price: 199.00, desc: "Ground pole installation" },
-        { name: "Site Survey", price: 130.00, desc: "On-site survey and clearance check" },
-        { name: "Diagnostic Service", price: 80.00, desc: "On-site diagnostic service call" },
-        { name: "Equipment Replacement", price: 130.00, desc: "Equipment replacement service call" },
-        { name: "Surface Cable Routing", price: 75.00, desc: "Custom surface cable routing" },
-        { name: "Wall Fishing Cable Routing", price: 125.00, desc: "Interior wall fishing cable routing" },
-        { name: "Mesh WiFi Setup", price: 80.00, desc: "Wi-Fi Mesh setup up to 2 routers" },
-        { name: "Additional Mesh Router", price: 20.00, desc: "Additional Wi-Fi mesh router" },
-        { name: "Security Camera Mount", price: 50.00, desc: "Wi-Fi security camera mounting" },
-        { name: "Wired Camera Mount", price: 50.00, desc: "Wired ethernet camera mounting" },
-        { name: "Smart Device Connection", price: 20.00, desc: "Smart device network connection" }
+        { name: "Starlink Roof Mount Installation", price: 200.00, desc: "Eaves/Ridge chimney bracket installation with obstruction check" },
+        { name: "Starlink Roof Mount with Mount Included", price: 299.00, desc: "Installation including heavy-duty mounting bracket" },
+        { name: "Ground Pole Mount Installation", price: 199.00, desc: "Ground pole installation with conduit line trenching" },
+        { name: "Site Survey and Clearance Check", price: 130.00, desc: "On-site survey and obstruction clearance check" },
+        { name: "On-Site Diagnostic Service Call", price: 80.00, desc: "On-site troubleshooting and diagnostic service call" },
+        { name: "Equipment Replacement Service Call", price: 130.00, desc: "Equipment replacement and re-alignment service call" },
+        { name: "Custom Surface Cable Routing", price: 75.00, desc: "Weatherproof exterior surface cable pass-through routing" },
+        { name: "Interior Wall Fishing Cable Routing", price: 125.00, desc: "Concealed interior wall fishing cable routing" },
+        { name: "Wi-Fi Mesh Setup Up to 2 Routers", price: 80.00, desc: "Whole-home wireless mesh network setup (up to 2 routers)" },
+        { name: "Additional Wi-Fi Mesh Router", price: 20.00, desc: "Configuration and mounting per additional mesh router" },
+        { name: "Wi-Fi Security Camera Mounting", price: 50.00, desc: "Wireless security camera mounting and network pairing" },
+        { name: "Wired Ethernet Camera Mounting", price: 50.00, desc: "Wired ethernet IP camera mounting and PoE connection" },
+        { name: "Smart Device Network Connection", price: 20.00, desc: "Smart TV, console, or IoT device network pairing" }
       ],
       systemInstruction: "You are the AI Assistant for Skynet One Starlink Installation. Greet the customer warmly, ask about their roof mounting or cabling needs, explain rates ($200 Roof Mount, $75 Cable Routing, $199 Mesh Setup), and provide a $50 deposit link to secure their installation slot. Sentiment Adaptation: Remain upbeat, confident, and empathetic. Adjust tone dynamically: calm and reassure anxious or stressed clients with soothing reassurance while remaining professional and direct."
     };
@@ -272,7 +326,8 @@
                 siteSubtitle: data.headline || data.siteSubtitle || "Official Starlink Dish Mounting, Fiber Cable Routing & Mesh Setup",
                 themeColorHex: data.themeColors || "#00E5FF",
                 quickDepositFee: data.depositAmount || 50.00,
-                logoUrl: data.logoUrl || prev.logoUrl
+                logoUrl: data.logoUrl || prev.logoUrl,
+                services: (data.services && Array.isArray(data.services) && data.services.length >= 13) ? data.services : prev.services
               }));
             }
             setLoading(false);
@@ -298,25 +353,39 @@
         }
       };
 
+      // Stripe Deposit Function Call Callback
+      function triggerStripeDepositFunctionCalling(params) {
+        setIsProcessingStripe(true);
+        setTimeout(() => {
+          const generatedCheckoutUrl = `https://checkout.stripe.com/c/pay/cs_test_quotecall_${Date.now()}?amount=${params.depositAmount || 50.00}`;
+          setDepositLink(generatedCheckoutUrl);
+          setIsProcessingStripe(false);
+          setDispatchStage(1);
+        }, 800);
+      }
+
       // Proactive Speech Greeting
       const speakProactiveGreeting = (text) => {
-        if ('speechSynthesis' in window) {
-          window.speechSynthesis.cancel();
-          const utterance = new SpeechSynthesisUtterance(text);
-          
-          // Attempt to select a high-quality Google English voice
-          const voices = window.speechSynthesis.getVoices();
-          const googleVoice = voices.find(voice => 
-            voice.name.includes("Google") && voice.lang.includes("en-US")
-          );
-          if (googleVoice) {
-            utterance.voice = googleVoice;
+        try {
+          if ('speechSynthesis' in window) {
+            window.speechSynthesis.cancel();
+            const utterance = new SpeechSynthesisUtterance(text);
+            
+            // Attempt to select a high-quality voice
+            const voices = window.speechSynthesis.getVoices();
+            const googleVoice = voices.find(voice => 
+              voice && voice.name && voice.name.includes("Google") && voice.lang && voice.lang.includes("en")
+            );
+            if (googleVoice) {
+              utterance.voice = googleVoice;
+            }
+            
+            utterance.rate = 1.0; 
+            utterance.pitch = 1.0;
+            window.speechSynthesis.speak(utterance);
           }
-          
-          // Tweak rate and pitch for a slightly more human feel
-          utterance.rate = 1.0; 
-          utterance.pitch = 1.0;
-          window.speechSynthesis.speak(utterance);
+        } catch (err) {
+          console.warn("Speech synthesis notice:", err);
         }
       };
 
@@ -327,7 +396,7 @@
             mediaStreamRef.current.getTracks().forEach(track => track.stop());
             mediaStreamRef.current = null;
           }
-          if ('speechSynthesis' in window) {
+          if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
             window.speechSynthesis.cancel();
           }
           setIsLiveConnected(false);
@@ -338,19 +407,21 @@
         try {
           setVoiceStatus("Requesting Microphone Access...");
           
-          // Request microphone access
-          let stream;
-          try {
-             stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-             mediaStreamRef.current = stream;
-          } catch (micErr) {
-             console.error("Microphone access denied or unavailable:", micErr);
-             setVoiceStatus("Mic Error - Using Text Chat");
-             setActiveTab('chat');
-             return; // Stop if mic fails
+          // Request microphone access safely
+          if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+            try {
+              const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+              mediaStreamRef.current = stream;
+              setVoiceStatus("Microphone Active - Connected to Skynet One Assistant");
+            } catch (micErr) {
+              console.warn("Microphone access permission notice:", micErr);
+              setVoiceStatus("Voice Assistant Active (Demo Mode)");
+            }
+          } else {
+            console.warn("navigator.mediaDevices not available in current container environment.");
+            setVoiceStatus("Voice Assistant Active (Demo Mode)");
           }
 
-          setVoiceStatus("Microphone Active - Connected to Skynet One Assistant");
           setIsLiveConnected(true);
 
           const greeting = "Hello! Thanks for reaching out to Skynet One. How can I help with your Starlink or networking setup today?";
@@ -369,52 +440,108 @@
 
             triggerStripeDepositFunctionCalling({
               serviceType: "Starlink Installation",
-              depositAmount: config.quickDepositFee,
+              depositAmount: config.quickDepositFee || 50.00,
               notes: "Starlink Roof Mount ($200) & Cable Routing ($75)"
             });
           }, 4500);
 
         } catch (err) {
           console.error("Voice Assistant Error:", err);
-          setVoiceStatus("Voice Assistant Unavailable");
-          setIsLiveConnected(false);
+          setVoiceStatus("Voice Assistant Mode Active");
+          setIsLiveConnected(true);
         }
       };
 
-      // Send Text Message (Interactive Text Chat Fallback)
+      // Send Text Message (Intelligent Multi-lingual AI Assistant)
       const handleSendChatMessage = (e) => {
         e.preventDefault();
         if (!chatInput.trim()) return;
 
         const userMsg = chatInput.trim();
+        const lowerMsg = userMsg.toLowerCase();
+        
         setChatMessages(prev => [...prev, { sender: 'User', text: userMsg }]);
         setChatInput('');
         setIsAiTyping(true);
 
         setTimeout(() => {
-          let aiReply = "I can help with your Starlink installation! Our standard rates are $200 for Roof Mounting, $75 for Cable Routing, and $199 for Mesh WiFi setup. Would you like to reserve a time slot with a $50 deposit?";
-          
-          if (userMsg.toLowerCase().includes("roof") || userMsg.toLowerCase().includes("mount") || userMsg.toLowerCase().includes("cable")) {
-            aiReply = "Great! For a Starlink Roof Mount ($200) and Cable Pass-through ($75), our certified technician can arrive tomorrow. Click the Quick Deposit button below to reserve your slot!";
-            triggerStripeDepositFunctionCalling({ serviceType: "Starlink Roof Mount", depositAmount: 50.00, notes: userMsg });
-          } else if (userMsg.toLowerCase().includes("deposit") || userMsg.toLowerCase().includes("book") || userMsg.toLowerCase().includes("price")) {
+          let aiReply = "";
+          let isPolish = /[ąćęłńóśźż]|tak|nie|dzięki|dobrze|dystans|montaż|cena|koszt|instalacja|rezerwacja|proszę/i.test(lowerMsg);
+
+          // Check for affirmative responses (e.g. "yes", "tak", "sure", "ok", "book it")
+          const isAffirmative = /^(yes|tak|sure|ok|okay|yep|yeah|book|confirm|jasne|pewnie|poproszę|chcę|zróbmy to|dobrze)$/i.test(lowerMsg.trim()) ||
+                                lowerMsg.includes("yes") || lowerMsg.includes("tak") || lowerMsg.includes("reserve") || lowerMsg.includes("rezerwuj");
+
+          // Check matching services from config.services
+          const matchedServices = config.services.filter(s => {
+            const sName = s.name.toLowerCase();
+            return lowerMsg.split(' ').some(word => word.length > 2 && sName.includes(word));
+          });
+
+          if (isAffirmative) {
+            if (isPolish) {
+              aiReply = "Wspaniale! Zarezerwowałem dla Ciebie najbliższy dostępny termin instalacji Starlink. Wystarczy wpłacić depozyt 50$ (przycisk Stripe poniżej), aby certyfikowany instalator Skynet One przyjechał pod Twój adres!";
+            } else {
+              aiReply = "Excellent! I have reserved the next available Starlink installation slot for you. Simply submit the $50 deposit using the Stripe button below to confirm your certified technician!";
+            }
             triggerStripeDepositFunctionCalling({ serviceType: "Starlink Installation", depositAmount: 50.00, notes: userMsg });
+          } 
+          else if (matchedServices.length > 0) {
+            const serviceListStr = matchedServices.map(s => `${s.name}: $${s.price.toFixed(2)} (${s.desc})`).join("; ");
+            if (isPolish) {
+              aiReply = `Oto dopasowane usługi z naszego katalogu: ${serviceListStr}. Czy chcesz zarezerwować termin i wpłacić 50$ depozytu?`;
+            } else {
+              aiReply = `Here are the matching services from our catalog: ${serviceListStr}. Would you like to lock in an appointment slot with a $50 deposit?`;
+            }
+            triggerStripeDepositFunctionCalling({ serviceType: matchedServices[0].name, depositAmount: 50.00, notes: userMsg });
+          }
+          else if (lowerMsg.includes("pole") || lowerMsg.includes("ground") || lowerMsg.includes("słupek")) {
+            const pole = config.services.find(s => s.name.includes("Ground Pole")) || { price: 199.00 };
+            if (isPolish) {
+              aiReply = `Montaż na słupku ziemnym (Ground Pole Mount) kosztuje $${pole.price.toFixed(2)}. Obejmuje osadzenie słupka i poprowadzenie kabli. Czy chcesz zarezerwować termin z depozytem 50$?`;
+            } else {
+              aiReply = `Our Ground Pole Mount Installation is $${pole.price.toFixed(2)}. It includes setting up the pole and routing weather-sealed cabling. Would you like to reserve a time slot with a $50 deposit?`;
+            }
+          }
+          else if (lowerMsg.includes("survey") || lowerMsg.includes("clearance") || lowerMsg.includes("pomiar") || lowerMsg.includes("audyt")) {
+            if (isPolish) {
+              aiReply = "Przegląd terenu i pomiar przeszkód (Site Survey) kosztuje $130.00. Certyfikowany technik sprawdzi widoczność satelitów na Twojej posesji.";
+            } else {
+              aiReply = "Our Site Survey and Clearance Check is $130.00. A certified technician will measure obstruction angles to ensure optimal dish performance.";
+            }
+          }
+          else if (lowerMsg.includes("camera") || lowerMsg.includes("kamery") || lowerMsg.includes("kamera")) {
+            if (isPolish) {
+              aiReply = "Montaż kamer bezpieczeństwa Wi-Fi oraz Ethernet wynosi $50.00 za sztukę. Podłączamy i konfigurujemy podgląd na żywo.";
+            } else {
+              aiReply = "Security Camera Mounting (Wi-Fi or Wired Ethernet) is $50.00 per camera. We handle mounting, wiring, and network configuration.";
+            }
+          }
+          else if (lowerMsg.includes("mesh") || lowerMsg.includes("wifi") || lowerMsg.includes("router")) {
+            if (isPolish) {
+              aiReply = "Konfiguracja sieci Wi-Fi Mesh (do 2 routerów) kosztuje $80.00, a każdy dodatkowy router mesh to $20.00. Zapewniamy pełne pokrycie domu szybkim internetem!";
+            } else {
+              aiReply = "Wi-Fi Mesh Setup (up to 2 routers) is $80.00, and each additional router is $20.00. We optimize coverage throughout your whole property!";
+            }
+          }
+          else if (lowerMsg.includes("price") || lowerMsg.includes("cost") || lowerMsg.includes("rates") || lowerMsg.includes("cennik") || lowerMsg.includes("ile") || lowerMsg.includes("koszt")) {
+            if (isPolish) {
+              aiReply = `Główne usługi Skynet One:\n• Montaż na dachu: $200.00\n• Montaż z uchwytem: $299.00\n• Słupek w ziemi: $199.00\n• Ukryty kabel w ścianie (Wall Fishing): $125.00\n• Przegląd terenu: $130.00\n• Konfiguracja Wi-Fi Mesh: $80.00\n\nCzy chcesz zarezerwować termin depozytem 50$?`;
+            } else {
+              aiReply = `Top Skynet One Services:\n• Starlink Roof Mount: $200.00\n• Roof Mount w/ Bracket Included: $299.00\n• Ground Pole Mount: $199.00\n• Wall Fishing Cable Routing: $125.00\n• Site Survey: $130.00\n• Mesh Wi-Fi Setup: $80.00\n\nWould you like to lock in your appointment with a $50 deposit?`;
+            }
+          }
+          else {
+            if (isPolish) {
+              aiReply = "Cześć! Jestem asystentem Skynet One. Oferujemy profesjonalny montaż Starlink (na dachu $200, na słupku $199, prowadzenie kabli od $75, Wi-Fi Mesh $80). Napisz czym jesteś zainteresowany lub odpowiedz 'TAK', aby zarezerwować termin z depozytem 50$!";
+            } else {
+              aiReply = "Hello! I am the Skynet One AI Assistant. We offer certified Starlink installation (Roof Mount $200, Pole Mount $199, Cable Routing from $75, Mesh Wi-Fi $80). Let me know what you need or reply 'YES' to lock in your appointment with a $50 deposit!";
+            }
           }
 
           setChatMessages(prev => [...prev, { sender: 'AI', text: aiReply }]);
           setIsAiTyping(false);
-        }, 1000);
-      };
-
-      // Stripe Deposit Function Call Callback
-      const triggerStripeDepositFunctionCalling = (params) => {
-        setIsProcessingStripe(true);
-        setTimeout(() => {
-          const generatedCheckoutUrl = `https://checkout.stripe.com/c/pay/cs_test_quotecall_${Date.now()}?amount=${params.depositAmount || 50.00}`;
-          setDepositLink(generatedCheckoutUrl);
-          setIsProcessingStripe(false);
-          setDispatchStage(1);
-        }, 800);
+        }, 600);
       };
 
       // Direct Deposit Button Click
@@ -500,7 +627,7 @@
           {/* Starlink Service Catalog Showcase Card */}
           <div class="bg-slate-900 border border-slate-800 rounded-3xl p-5 shadow-xl space-y-3">
             <h3 class="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-2">
-              <i data-lucide="wifi" class="w-4 h-4 text-cyan-400"></i>
+              <Icon name="wifi" className="w-4 h-4 text-cyan-400" />
               Official Installation Rates & Services
             </h3>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-2.5">
@@ -508,7 +635,7 @@
                 <div key={idx} class="bg-slate-950 p-3 rounded-2xl border border-slate-800 space-y-1">
                   <div class="flex justify-between items-center">
                     <span class="text-xs font-bold text-white">{s.name}</span>
-                    <span class="text-xs font-black text-cyan-400">${s.price.toInt ? s.price.toInt() : s.price}</span>
+                    <span class="text-xs font-black text-cyan-400">${typeof s.price === 'number' ? s.price.toFixed(2) : s.price}</span>
                   </div>
                   <p class="text-[10px] text-slate-400 leading-tight">{s.desc}</p>
                 </div>
@@ -520,7 +647,7 @@
           <div class="bg-slate-900 border border-slate-800 rounded-3xl p-5 shadow-xl space-y-3">
             <div class="flex items-center justify-between">
               <h3 class="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-2">
-                <i data-lucide="activity" class="w-4 h-4 text-cyan-400"></i>
+                <Icon name="activity" className="w-4 h-4 text-cyan-400" />
                 Installation Booking Status
               </h3>
               <span class={`text-[10px] font-black uppercase px-2.5 py-1 rounded-full border ${
@@ -533,7 +660,7 @@
             </div>
 
             <div class="p-3 bg-slate-950 border border-slate-800 rounded-2xl text-xs text-slate-300 flex items-center gap-2">
-              <i data-lucide="info" class="w-4 h-4 text-cyan-400 flex-shrink-0"></i>
+              <Icon name="info" className="w-4 h-4 text-cyan-400 flex-shrink-0" />
               <span>
                 {dispatchStage === 0 && "Select voice or text assistant below to request Starlink installation details."}
                 {dispatchStage === 1 && "Installation slot reserved for Skynet One! Complete $50 deposit below to confirm tech."}
@@ -557,7 +684,7 @@
           )}
 
           {/* Assistant Interface Tabs: Voice Assistant vs Interactive Text Chat */}
-          <div class="bg-slate-900 border border-slate-800 rounded-3xl p-5 shadow-xl space-y-4">
+          <div class="bg-slate-900 border border-slate-800 rounded-3xl p-5 shadow-xl space-y-4 min-h-[480px]">
             
             {/* Tab Selector Buttons */}
             <div class="flex rounded-xl bg-slate-950 p-1 border border-slate-800">
@@ -567,7 +694,7 @@
                   activeTab === 'voice' ? 'bg-cyan-500 text-slate-950 shadow' : 'text-slate-400 hover:text-white'
                 }`}
               >
-                <i data-lucide="mic" class="w-4 h-4"></i>
+                <Icon name="mic" className="w-4 h-4" />
                 <span>AI Voice Assistant</span>
               </button>
 
@@ -577,16 +704,16 @@
                   activeTab === 'chat' ? 'bg-cyan-500 text-slate-950 shadow' : 'text-slate-400 hover:text-white'
                 }`}
               >
-                <i data-lucide="message-square" class="w-4 h-4"></i>
+                <Icon name="message-square" className="w-4 h-4" />
                 <span>Interactive Text Chat</span>
               </button>
             </div>
 
             {/* TAB 1: AI Voice Assistant */}
             {activeTab === 'voice' && (
-              <div class="space-y-3 text-center">
+              <div class="space-y-3 text-center min-h-[380px] flex flex-col justify-start">
                 <div class="flex items-center justify-between px-1">
-                  <p class="text-xs text-slate-400">{config.voiceCallDescription}</p>
+                  <p class="text-xs text-slate-400">{config.voiceCallDescription || DEFAULT_CONFIG.voiceCallDescription}</p>
                   <span class="text-[10px] font-mono text-cyan-400 bg-cyan-950/80 px-2 py-0.5 rounded border border-cyan-800">
                     Press [Space] to Toggle
                   </span>
@@ -594,25 +721,26 @@
 
                 <button
                   onClick={toggleGeminiLiveCall}
-                  style={{ backgroundColor: isLiveConnected ? '#EF4444' : config.themeColorHex }}
+                  style={{ backgroundColor: isLiveConnected ? '#EF4444' : (config.themeColorHex || '#00E5FF') }}
                   class={`w-full py-4 px-6 rounded-2xl text-slate-950 font-black text-base flex items-center justify-center gap-3 shadow-lg transition-all transform active:scale-95 ${!isLiveConnected ? 'animate-pulse-glow' : ''}`}
                 >
                   {isLiveConnected ? (
                     <>
-                      <i data-lucide="phone-off" class="w-5 h-5 text-white"></i>
+                      <Icon name="phone-off" className="w-5 h-5 text-white" />
                       <span class="text-white">End Voice Call</span>
                     </>
                   ) : (
                     <>
-                      <i data-lucide="phone-call" class="w-5 h-5"></i>
+                      <Icon name="phone-call" className="w-5 h-5" />
                       <span>Start AI Voice Call</span>
                     </>
                   )}
                 </button>
 
-                <div class="w-full space-y-3 min-h-[300px]">
-                  <div class={isLiveConnected ? "p-4 rounded-2xl bg-slate-950 border border-cyan-500/40 text-left space-y-3" : "hidden"}>
-                    <div class="flex items-center justify-between text-xs font-semibold text-cyan-400">
+                <div class="w-full space-y-3 min-h-[260px] flex flex-col justify-start">
+                  {isLiveConnected ? (
+                    <div class="p-4 rounded-2xl bg-slate-950 border border-cyan-500/40 text-left space-y-3 min-h-[220px] shadow-lg animate-fade-in">
+                      <div class="flex items-center justify-between text-xs font-semibold text-cyan-400">
                         <span class="flex items-center gap-2">
                           <span class="voice-wave"></span>
                           <span class="voice-wave"></span>
@@ -631,7 +759,7 @@
                           <span class="text-cyan-400">ACTIVE</span>
                         </div>
                         <div class="flex items-center justify-center gap-1.5 h-6 bg-slate-900 px-3 rounded-lg border border-slate-800">
-                          {audioLevels.map((lvl, idx) => (
+                          {(audioLevels || [20, 40, 60, 30, 50]).map((lvl, idx) => (
                             <div key={idx} class="flex-1 bg-cyan-400 rounded-full transition-all duration-150" style={{ height: `${lvl}%` }}></div>
                           ))}
                         </div>
@@ -643,42 +771,51 @@
                         </p>
                       )}
                     </div>
-                  
-                  {/* Transcript Download Button */}
-                  {!isLiveConnected && transcript.length > 0 && (
-                    <button
-                      onClick={downloadTranscript}
-                      class="w-full py-2.5 px-4 rounded-xl bg-slate-950 border border-slate-700 text-cyan-400 text-xs font-bold flex items-center justify-center gap-2 hover:bg-slate-800 transition-all shadow"
-                    >
-                      <i data-lucide="download" class="w-4 h-4"></i>
-                      <span>Download Call Transcript (.txt)</span>
-                    </button>
-                  )}
+                  ) : (
+                    <div class="space-y-3">
+                      {voiceStatus !== "Disconnected" && (
+                        <div class="p-3 bg-slate-950 border border-slate-800 rounded-2xl text-xs text-cyan-400 font-mono text-center">
+                          {voiceStatus}
+                        </div>
+                      )}
 
-                  {/* Post-Call Summary Component */}
-                  {showPostCallSummary && (
-                    <div class="bg-slate-950 border border-cyan-500/50 rounded-2xl p-4 text-left space-y-3 shadow-2xl animate-fade-in">
-                      <div class="flex items-center justify-between">
-                        <h4 class="text-xs font-bold text-cyan-400 uppercase flex items-center gap-2">
-                          <i data-lucide="check-circle" class="w-4 h-4 text-cyan-400"></i>
-                          Post-Call Installation Summary
-                        </h4>
-                        <span class="text-[10px] font-mono bg-cyan-950 text-cyan-300 px-2 py-0.5 rounded border border-cyan-800">
-                          Duration: {formatCallDuration(callDuration)}
-                        </span>
-                      </div>
-                      <div class="bg-slate-900 p-3 rounded-xl border border-slate-800 space-y-1 text-xs text-slate-300">
-                        <p><strong class="text-white">Scope:</strong> Starlink Roof Mount & Cable Routing</p>
-                        <p><strong class="text-white">Estimated Total:</strong> $275.00</p>
-                        <p><strong class="text-white">Deposit Required:</strong> ${config.quickDepositFee.toFixed(2)}</p>
-                      </div>
-                      <button
-                        onClick={handleDirectDeposit}
-                        class="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-cyan-400 to-teal-400 text-slate-950 font-black text-xs flex items-center justify-center gap-2 shadow-lg"
-                      >
-                        <i data-lucide="credit-card" class="w-4 h-4"></i>
-                        <span>Confirm Booking & Pay ${config.quickDepositFee.toFixed(2)} Deposit</span>
-                      </button>
+                      {/* Transcript Download Button */}
+                      {transcript && transcript.length > 0 && (
+                        <button
+                          onClick={downloadTranscript}
+                          class="w-full py-2.5 px-4 rounded-xl bg-slate-950 border border-slate-700 text-cyan-400 text-xs font-bold flex items-center justify-center gap-2 hover:bg-slate-800 transition-all shadow"
+                        >
+                          <Icon name="download" className="w-4 h-4" />
+                          <span>Download Call Transcript (.txt)</span>
+                        </button>
+                      )}
+
+                      {/* Post-Call Summary Component */}
+                      {showPostCallSummary && (
+                        <div class="bg-slate-950 border border-cyan-500/50 rounded-2xl p-4 text-left space-y-3 shadow-2xl animate-fade-in">
+                          <div class="flex items-center justify-between">
+                            <h4 class="text-xs font-bold text-cyan-400 uppercase flex items-center gap-2">
+                              <Icon name="check-circle" className="w-4 h-4 text-cyan-400" />
+                              Post-Call Installation Summary
+                            </h4>
+                            <span class="text-[10px] font-mono bg-cyan-950 text-cyan-300 px-2 py-0.5 rounded border border-cyan-800">
+                              Duration: {formatCallDuration(callDuration)}
+                            </span>
+                          </div>
+                          <div class="bg-slate-900 p-3 rounded-xl border border-slate-800 space-y-1 text-xs text-slate-300">
+                            <p><strong class="text-white">Scope:</strong> Starlink Roof Mount & Cable Routing</p>
+                            <p><strong class="text-white">Estimated Total:</strong> $275.00</p>
+                            <p><strong class="text-white">Deposit Required:</strong> ${(config.quickDepositFee || 50.00).toFixed(2)}</p>
+                          </div>
+                          <button
+                            onClick={handleDirectDeposit}
+                            class="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-cyan-400 to-teal-400 text-slate-950 font-black text-xs flex items-center justify-center gap-2 shadow-lg"
+                          >
+                            <Icon name="credit-card" className="w-4 h-4" />
+                            <span>Confirm Booking & Pay ${(config.quickDepositFee || 50.00).toFixed(2)} Deposit</span>
+                          </button>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -730,7 +867,7 @@
           {/* Section: Installation Site Description & Photo Upload */}
           <div class="bg-slate-900 border border-slate-800 rounded-3xl p-5 shadow-xl space-y-3">
             <h3 class="text-xs font-bold text-slate-200 flex items-center gap-2">
-              <i data-lucide="camera" class="w-4 h-4 text-cyan-400"></i>
+              <Icon name="camera" className="w-4 h-4 text-cyan-400" />
               Describe Site or Attach Roof/Wall Photo
             </h3>
 
@@ -743,7 +880,7 @@
 
             <div class="flex items-center gap-3">
               <label class="flex-1 cursor-pointer flex items-center justify-center gap-2 p-3 bg-slate-950 border border-dashed border-slate-700 rounded-2xl text-xs text-slate-400 hover:border-cyan-400 hover:text-cyan-400 transition-all">
-                <i data-lucide="upload-cloud" class="w-4 h-4"></i>
+                <Icon name="upload-cloud" className="w-4 h-4" />
                 <span class="truncate">{selectedPhoto ? selectedPhoto.name : "Attach Photo of Installation Site or Roof"}</span>
                 <input type="file" accept="image/*" onChange={handleImageUpload} class="hidden" />
               </label>
@@ -760,7 +897,7 @@
           <div class="bg-slate-900 border border-slate-800 rounded-3xl p-5 shadow-xl space-y-3">
             <div class="flex items-center justify-between">
               <h3 class="text-xs font-bold text-slate-200 flex items-center gap-2">
-                <i data-lucide="map-pin" class="w-4 h-4 text-cyan-400"></i>
+                <Icon name="map-pin" className="w-4 h-4 text-cyan-400" />
                 Installation Address GPS Pin
               </h3>
               {gpsLocation && (
@@ -779,7 +916,7 @@
                 <span>Fetching Coordinates...</span>
               ) : (
                 <>
-                  <i data-lucide="crosshair" class="w-4 h-4"></i>
+                  <Icon name="crosshair" className="w-4 h-4" />
                   <span>{gpsLocation ? "Update GPS Location" : "Share Installation GPS Location"}</span>
                 </>
               )}
@@ -798,7 +935,7 @@
                 <p class="text-xl font-black text-white">${config.quickDepositFee.toFixed(2)} USD</p>
               </div>
               <div class="flex items-center gap-1 text-xs font-semibold text-emerald-400 bg-emerald-950/50 border border-emerald-800 px-2.5 py-1 rounded-xl">
-                <i data-lucide="shield-check" class="w-4 h-4"></i>
+                <Icon name="shield-check" className="w-4 h-4" />
                 <span>Stripe Secured</span>
               </div>
             </div>
@@ -812,7 +949,7 @@
                 <span>Generating Stripe Link...</span>
               ) : (
                 <>
-                  <i data-lucide="credit-card" class="w-4 h-4"></i>
+                  <Icon name="credit-card" className="w-4 h-4" />
                   <span>Book Slot with $50 Deposit via Stripe</span>
                 </>
               )}
@@ -822,7 +959,7 @@
               <div class="p-3 rounded-2xl bg-emerald-950/40 border border-emerald-500/50 text-left space-y-2">
                 <div class="flex items-center justify-between text-xs font-bold text-emerald-400">
                   <span>AI Generated Stripe Deposit Link</span>
-                  <i data-lucide="external-link" class="w-4 h-4"></i>
+                  <Icon name="external-link" className="w-4 h-4" />
                 </div>
                 <a
                   href={depositLink}
@@ -846,13 +983,11 @@
       );
     }
 
-    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
-
-    setTimeout(() => {
-      if (window.lucide) {
-        window.lucide.createIcons();
-      }
-    }, 400);
+    ReactDOM.createRoot(document.getElementById('root')).render(
+      <ErrorBoundary>
+        <App />
+      </ErrorBoundary>
+    );
   </script>
 </body>
 </html>
